@@ -1,8 +1,8 @@
 ---
 title: "README"
-output: html_document
+output: github_document
 ---
-# Purpose
+# INTRO
 
 
 ```{r setup, include=FALSE}
