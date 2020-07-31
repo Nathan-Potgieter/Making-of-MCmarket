@@ -3,15 +3,17 @@ README
 
 # INTRO
 
-## R Markdown
+This is the README file for Nathan Potgieter’s financial econometrics
+project.
 
-This is an R Markdown document. Markdown is a simple formatting syntax
-for authoring HTML, PDF, and MS Word documents. For more details on
-using R Markdown see <http://rmarkdown.rstudio.com>.
+The aim of this project is to develop a general and easy to use Monte
+Carlo package, that generates financial data with the possibility of
+extreme joint down movements, as observed during financial crisis.
 
-When you click the **Knit** button a document will be generated that
-includes both content as well as the output of any embedded R code
-chunks within the document. You can embed an R code chunk like this:
+## Generating Covarience matrix
+
+In this section I developed a simple function that allows the user to
+easily generate a covarience matrix with the desired cluster structure.
 
 ``` r
 summary(cars)
