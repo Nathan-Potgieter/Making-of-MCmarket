@@ -35,5 +35,11 @@ vignettes/*.pdf
 *.utf8.md
 *.knit.md
 
-#Never commit data files to github
+# Never commit data files to github
 data/
+
+# Tinkering code files
+code/Copula tinkering.R
+code/example_function.R
+
+
