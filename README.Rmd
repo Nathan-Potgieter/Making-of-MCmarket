@@ -13,27 +13,28 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
-library(tidyverse)
+library(pacman)
+p_load(tidyverse)
 
 ```
 
-## Generating Covarience matrix
+# Generating Covarience matrix
 
 In this section I developed a simple function that allows the user to easily generate a covarience matrix with the desired cluster structure. Note that the majority of the code was writen by Nico Katzke. The function is located in the gcVar.R code file. 
 
-##### Question refering to this chunk of code
+#### Question refering to this chunk of code
 
-1. How to I specify the function argument so that; if(Clusters == "overlapping") then Num,Clusters must be a vector of length 3. that way the user can specify the number of clusters at each layer. 
+1. How to I specify the function argument so that; if(Clusters == "overlapping") then Num,Clusters must be a vector of length 3? that way the user can specify the number of clusters in each layer. 
 
-2.
+2. how would you suggest that I enable the user to specify in and out cluster correlation? What would the arhgument look like? 
+
+3. Please give me some pointers on what you  think I should change/add to this function
 
 
 ```{r gcVar}
 #Co-Varience matrix generatimg function
 
 gcVar <- function(N = 50, Clusters = c("none", "non-overlapping", "overlapping") , Num.Clusters = 10){
-
-#If Clusters = "overlapping" then Num.Clusters must be a vector fo length 3
     
 N <- N
 Grps <- Num.Clusters
@@ -98,18 +99,239 @@ return(corr)
 ```
 
 
-```{r using gcVar}
+```{r using gcVar, fig.show='hide'}
 
 gcVar(N = 50, Clusters = "none") %>% corrplot::corrplot()
-gcVar(N = 50, Clusters = "non-overlapping") %>% corrplot::corrplot()
+gcVar(N = 50, Clusters = "non-overlapping", Num.Clusters = 2) %>% corrplot::corrplot()
 gcVar(N = 50, Clusters = "overlapping") %>% corrplot::corrplot()
 
 ```
 
 ## GeneratingRrandom Draws with numerous Copula Functions
 
-```{r Elliptal Copulas}
+### Elliptal copulas
 
+Elliptal copulas such as the Gaussian and the student t copulas, allow us to specify a correlation matrix and then produce random draws of uniformly distributed variable, that contain the correlation structure and joint distribution specified by the copula. The chunk of code below demonstrates this functionality. 
+
+Unfortunately, both Elliptal copulas are symmetric and cannot be calibrated to exhibit increased co-movements within the tails of the distribution. therefore, in the next section we examine some properties of Archimedean copulas. 
+
+
+```{r Elliptal Copulas}
+#loading copula package
+p_load(copula)
+
+#generating corr  matrix object
+corr <- gcVar(N = 50, Clusters = "overlapping")
+
+#generating copula objects   
+Ncop <- ellipCopula(family = "normal", dispstr = "un", param = P2p(corr), dim = 50)
+Tcop <- ellipCopula(family = "t", dispstr = "un", param = P2p(corr), dim = 50)
+
+#generating 251 random draws for each of the N variables
+set.seed(123)
+rn <- rCopula(copula = Ncop, n = 251)
+rt <- rCopula(copula = Tcop, n = 251)
+
+#Checking if the correlation structure was maintained
+# Origional corr
+corr %>% corrplot::corrplot()
+# corr from random draws form norm and t copula
+cor(rn) %>% corrplot::corrplot()
+cor(rt) %>% corrplot::corrplot()
+
+#Notice that the underlying correlation structure has been maintained for the most part
 
 ```
 
+### Archimedean copulas
+
+Archimedean copulas such as the clayton, frank, gumbel and joe exhibit increased dependence at the tails of the multivariate distribution. In this section we will examine the clayton, .... copulas due to them  exhibiting enhanced left-tail dependencies. We will also have a look at the hybrid BB1-BB6 which in which exibit increased dynamic dependenies in both tails. 
+
+```{r arch copulas}
+# first look at at dim=2 to get understanding of what parameter tning does
+
+#Clayton Copula
+claycop <- archmCopula(family = "clayton", param = 1.5, dim = 2)
+# rCopula(251, claycop)
+
+#note how left tail dependence increases with the parameter
+persp(archmCopula(family = "clayton", param = 1, dim = 2), dCopula, zlim = c(0, 10))
+persp(archmCopula(family = "clayton", param = 1.5, dim = 2), dCopula, zlim = c(0, 10))
+persp(archmCopula(family = "clayton", param = 2, dim = 2), dCopula, zlim = c(0, 10))
+
+#Note that the Gumbel and Joe copulas can be rotated 180 degrees to exibit greater left tail dependence
+#Gumbel Copula
+gumcop <- archmCopula(family = "gumbel", param = 1.5, dim = 2)
+# rCopula(251, gumcop)
+
+#note how right tail dependence > left tail dependence; tail dependence increase with the parameter value.
+persp(archmCopula(family = "gumbel", param = 1, dim = 2), dCopula, zlim = c(0, 10))
+persp(archmCopula(family = "gumbel", param = 1.5, dim = 2), dCopula, zlim = c(0, 10))
+persp(archmCopula(family = "gumbel", param = 2.1, dim 
+
+
+
+### Elliptal and Archimedean hybrid
+= 2), dCopula, zlim = c(0, 10))
+
+#Joe copula
+joecop <- archmCopula(family = "joe", param = 1.5, dim = 2)
+# rCopula(251, joecop)
+
+#note how right tail dependence > left tail dependence;tail dependence increase with the parameter value at rate < gumbel
+persp(archmCopula(family = "joe", param = 1, dim = 2), dCopula, zlim = c(0, 10))
+persp(archmCopula(family = "joe", param = 1.5, dim = 2), dCopula, zlim = c(0, 10))
+persp(archmCopula(family = "joe", param = 2, dim = 2), dCopula, zlim = c(0, 10))
+#Rotated Joe
+persp(rotCopula(archmCopula(family = "joe", param = 2, dim = 2)), dCopula, zlim = c(0, 10))
+
+#looking at some hybrid copulas
+persp(copula::evCopula(family = "galambos", param = 1, dim = 2), dCopula, zlim = c(0, 10))
+persp(copula::evCopula(family = "galambos", param = 1.5, dim = 2), dCopula, zlim = c(0, 10))
+persp(copula::evCopula(family = "galambos", param = 2, dim = 2), dCopula, zlim = c(0, 10))
+
+```
+
+# Looking at some hybrid copulas
+
+Tawn's (1988) Theorem: Shows that a copula is a convex set and every convex combination of existing copula functions is again a copula. See "Extreme Dependence Structures and the Cross-Section of Expected Stock Returns" page 8 & 9. 
+
+
+```{r hybrid}
+#first lookat at situation when dim = 2
+
+#Central distribution Copulas
+Ncop <- ellipCopula(family = "normal", dispstr = "un", param = 0.8, dim = 2)
+Tcop <- ellipCopula(family = "t", dispstr = "un", param = 0.8, dim = 2, df = 1)
+
+#left tail copulas
+claycop <- archmCopula(family = "clayton", param = 2, dim = 2)
+gumcop <- rotCopula(archmCopula(family = "gumbel", param = 2, dim = 2))  #note that gumbel must be rotated 180degrees to exhibit LT dependence
+
+rCopula(10000, gumcop) %>% plot()
+
+#looking at different combinations
+set.seed(123)
+w1=0.5  #tinker with weights and notice what happens; observed corr diminishes as we decrease w1
+#Norm + Clayton
+data <- (1-w1)*rCopula(10000, Ncop) + w1*rCopula(10000, claycop)
+cor(data)
+plot(data, type = "p")
+#T + Clayton; try adjusting the df to see what happens
+data <- (1-w1)*rCopula(10000, Tcop) + w1*rCopula(10000, claycop)
+cor(data)
+plot(data, type = "p")
+#T + Gumbel; Gumbel cop exhibits more right-tail dependence than Clayton, therefre may be better to pair with Normcop
+data <- (1-w1)*rCopula(10000, Tcop) + w1*rCopula(10000, gumcop)
+cor(data)
+plot(data, type = "p")
+#Norm + Gumbel
+data <- (1-w1)*rCopula(10000, Ncop) + w1*rCopula(10000, gumcop)
+cor(data)
+plot(data, type = "p")
+
+#Results from the tcop + clayton cop seem to be the most promising
+
+```
+
+## Hybrid Clayton + t copulas
+
+The function below generates random uniformly distributed numbers from a hybrid t and clayton copula.
+Need to think about how to calibrate df and claycop parameters
+
+
+```{r hycop function}
+
+set.seed(123)
+hycop <- function(Corr, left.cop.weight, N = 10, T = 251){
+    Corr <- P2p(Corr)
+
+#specifying  Copula's
+    
+Ecop <- ellipCopula(family = "t", dispstr = "un", df = 20, param = Corr, dim = N)
+ 
+Acop <- archmCopula(family = "clayton", param = 10, dim = N)
+
+data <- left.cop.weight*rCopula(T, Acop) + (1-left.cop.weight)*rCopula(T, Ecop)
+return(data)
+}
+
+#generating Corr matrix
+corr <- gcVar(N = 50, Clusters = "non-overlapping", Num.Clusters = 2)
+
+#Testing where N=50 and left.cop.weight = 0; i.e. just t copula
+data <- hycop(Corr = corr, left.cop.weight = 0 , N = 50, T = 10000)
+data %>% plot() 
+
+#Testing where N=50 and left.cop.weight = 0.2
+data <- hycop(Corr = corr, left.cop.weight = 0.2 , N = 50, T = 10000)
+data %>% plot()   
+
+#Testing where N=50 and left.cop.weight = 0.4
+data <- hycop(Corr = corr, left.cop.weight = 0.4 , N = 50, T = 10000)
+data %>% plot()
+
+#Testing where N=50 and left.cop.weight = 0.6
+data <- hycop(Corr = corr, left.cop.weight = 0.6 , N = 50, T = 10000)
+data %>% plot() 
+
+#Testing where N=50 and left.cop.weight = 0.8
+data <- hycop(Corr = corr, left.cop.weight = 0.8 , N = 50, T = 10000)
+data %>% plot() 
+
+#Testing where N=50 and left.cop.weight = 1
+data <- hycop(Corr = corr, left.cop.weight = 1 , N = 50, T = 10000)
+data %>% plot() 
+
+```
+
+In this chunk we convert the random numbers from uniform to t distributed 
+
+```{r marginal distrinutions }
+#Setting seed, Generating corr matrix and random uniform numbers
+p_load(moments)
+set.seed(123)
+corr <- gcVar(N = 50, Clusters = "overlapping", Num.Clusters = 2)
+data <- hycop(Corr = corr, left.cop.weight = 0.5, N = 50, T = 10000)
+
+#converting uniform marginals to t dist 
+dat <- apply(data, 2, qt, df = 10)   #how do I adjust the df parameter within the apply???)
+
+#note how the plots change when comparing variables from outside the clusters.
+plot(dat[,1], dat[,4])
+plot(dat[,1], dat[,6])
+plot(dat[,1], dat[,11])
+plot(dat[,1], dat[,26])
+dat %>% cor() %>% corrplot::corrplot()
+
+dat[,1] %>% hist()
+apply(dat, 2, mean)
+apply(dat, 2, sd)
+apply(dat, 2, kurtosis)
+
+
+
+qnorm(0.01)
+qnorm(0.001)
+qnorm(0.0001)
+
+```
+
+This chunk of code is intended to be used to test the speed of computation 
+```{r Monte carlo}
+library(tictoc)
+p_load(furrr)
+set.seed(123)
+#generating Corr matrix
+corr <- gcVar(N = 50, Clusters = "non-overlapping", Num.Clusters = 2)
+
+#rerunning hycop for each counterfactual
+tic()
+data <- map(1:1000, ~hycop(Corr = corr, left.cop.weight = 0 , N = 50, T = 251))
+toc()
+
+tic()
+data <- furrr::future_map(1:1000, ~hycop(Corr = corr, left.cop.weight = 0 , N = 50, T = 251))
+toc()
+
+```
