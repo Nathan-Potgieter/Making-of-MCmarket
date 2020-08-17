@@ -7,7 +7,7 @@ output: github_document
 This is the README file for Nathan Potgieter's financial econometrics project. 
 
 ## Aim
-The aim of this project is to develop a general and easy to use Monte Carlo package that generates asset return data with a prespecified correlation matrix adn various other risk factors.These factors include a leverage parameter that determines the likelihood of joint drawdowns, as well as the parameters of a ARIMA(p,q) + GARCH(q,p) process. Elliptical copulas are used to induce the correlation in the simulated data, while Archmedian copulas are used to adjust the likelihood of joint drawdowns. 
+The aim of this project is to develop a general and easy to use Monte Carlo package that generates asset return data with a prespecified correlation structure and dynamic dependencies. The user will be able to adjust a "leverage" parameter, which determines the likelihood of entering a "crisis period" characterized by extreme joint drawdowns. The data will also be generated to exhibit  ARIMA(p,q) + GARCH(q,p) features, the parameters of which can be adjusted to induce alternative forms of risk. Elliptical copulas are used to induce the correlation in the simulated data, while Archmedian copulas are used to adjust the likelihood of joint drawdowns. Various ARIMA(p,q) + GARCH(q,p) structures can be called on to induce mean and variance persistence.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
