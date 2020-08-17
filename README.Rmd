@@ -65,7 +65,7 @@ if(Clusters == "non-overlapping"){
     
 for (i in 1:Grps) {
       ix <- seq((i-1) * N / Grps + 1, i * N / Grps)
-      Sigma[ix, -ix] <- 0.1
+      Sigma[ix, -ix] <- 0.0001                       #think about
     }
     Sigma <- propagate::cor2cov(Sigma, runif(N, 1, 5))
     corr <- cov2cor(Sigma)
@@ -89,23 +89,23 @@ if(Clusters == "overlapping"){
 
     for (i in 1:Grps[1]) {
       ix <- seq((i-1) * N / Grps[1] + 1, i * N / Grps[1])
-      Sigma[ix, -ix] <- 0.8
+      Sigma[ix, -ix] <- 0.7
     }
     
     if(Num_Layers>=2){
         for (i in 1:Grps[2]) {
           ix <- seq((i-1) * N / Grps[2] + 1, i * N / Grps[2])
-          Sigma[ix, -ix] <- 0.6
+          Sigma[ix, -ix] <- 0.05
         } }else
     if(Num_Layers>=3){
         for (i in 1:Grps[3]) {
       ix <- seq((i-1) * N / Grps[3] + 1, i * N / Grps[3])
-      Sigma[ix, -ix] <- 0.4
+      Sigma[ix, -ix] <- 0.03
         } }else
     if(Num_Layers>=4){
         for (i in 1:Grps[4]) {
       ix <- seq((i-1) * N / Grps[4] + 1, i * N / Grps[4])
-      Sigma[ix, -ix] <- 0.1
+      Sigma[ix, -ix] <- 0
         } } 
     }
 
@@ -219,7 +219,7 @@ Tcop <- ellipCopula(family = "t", dispstr = "un", param = 0.8, dim = 2, df = 1)
 claycop <- archmCopula(family = "clayton", param = 2, dim = 2)
 #the following dont work for high dimentions
 gumcop <- archmCopula(family = "gumbel", param = 3, dim = 2) %>% rotCopula() 
-joecop <- archmCopula(family = "joe", param = 3, dim = 50) %>% rotCopula()
+joecop <- archmCopula(family = "joe", param = 3, dim = 2) %>% rotCopula()
 galcop <- evCopula(family = "galambos", param = 2, dim = 2) %>% rotCopula()
 
 
@@ -260,7 +260,11 @@ Arguments
 
 - Corr this is a correlation matrix uses as the parameter for the elliptical copula
 - elliptal_copula family name of elliptal copula. Default is to use "t", but "norm" is also accepted
-- left_cop
+- df_ellip a positive integer specifying the degrees of freedom for the student t elliptic copula. Only required when using elliptal_copula = "t".
+- left_cop_param a positive integer specifying the parameter of the __Clayton__ copula. 
+- left_cop_weight a value between 0 and 1 corresponding to the weight assigned to the left copula, when generating random draws from a hybrid copula.
+- marginal_dist a character string specifying the marginal distribution of the simulated data. Must be "norm" or "t", with the default generating uniformly distributed marginals.
+- df_marginal_dist a positive integer specifying the degrees of freedom parameter of the "t" distributed marginals. 
 
 
 ```{r hycop function}
@@ -327,26 +331,30 @@ Testing hycop
 ```{r}
 set.seed(123)
 
-Corr <- gcVar(N = 50, Clusters = "overlapping", Num_Layers = 3, Num_Clusters = c(2,5,10))
+Corr <- gcVar(N = 50, Clusters = "overlapping", Num_Layers = 3, Num_Clusters = c(10,5,2))
 Corr %>% corrplot::corrplot()
 
 #First test when marginal_dist=NULL ie unif(0,1)
 #left_cop_param = 6 AND left_cop_weight = 0.7 looks good
 set.seed(123)
-inno <- hycop(Corr, elliptal_copula = "t", df_ellip = 10, left_cop_param = 6, left_cop_weight = 0.7, T = 10000)
+inno <- hycop(Corr, elliptal_copula = "t", df_ellip = 10, left_cop_param = 10, left_cop_weight = 0.4, T = 10000)
 
 inno %>% plot(main = 'Hycop: Unif marginals')
 inno %>% cor %>%  corrplot::corrplot()
 
 #Using marginal_dist="norm"
 set.seed(123)
-data <- hycop(Corr, elliptal_copula = "t", df_ellip = 10, left_cop_param = 6, left_cop_weight = 0.5, T = 10000, marginal_dist = "norm")
+data <- hycop(Corr, elliptal_copula = "t", df_ellip = 30, left_cop_param = 10, left_cop_weight = 0.5, T = 10000, marginal_dist = "norm")
 data %>% plot(main = 'Hycop: norm(0,1) marginals') 
+data %>% cor %>%  corrplot::corrplot()
 
 #Using marginal_dist="t"
 set.seed(123)
 data <- hycop(Corr, elliptal_copula = "t", df_ellip = 10, left_cop_param = 6, left_cop_weight = 0.5, T = 10000, marginal_dist = "t", df_marginal_dist = 8)
 data %>% plot(main = 'Hycop: t-dist marginals, df = 8') 
+plot(data[,1], data[,10], main = 'Hycop: t-dist marginals, df = 8')
+plot(data[,1], data[,ncol(data)], main = 'Hycop: t-dist marginals, df = 8')
+data %>% cor %>%  corrplot::corrplot()
 
 ```
 
@@ -356,6 +364,8 @@ data %>% plot(main = 'Hycop: t-dist marginals, df = 8')
 In this step I introduce autocorrelation and volatility using an AR(p,q)+GARCH(q,p) model. 
 
 ## Questions 
+
+- How should I deal with the burn in period?
 
 
 ```{r}

@@ -82,7 +82,7 @@ if(Clusters == "non-overlapping"){
     
 for (i in 1:Grps) {
       ix <- seq((i-1) * N / Grps + 1, i * N / Grps)
-      Sigma[ix, -ix] <- 0.1
+      Sigma[ix, -ix] <- 0.0001                       #think about
     }
     Sigma <- propagate::cor2cov(Sigma, runif(N, 1, 5))
     corr <- cov2cor(Sigma)
@@ -106,23 +106,23 @@ if(Clusters == "overlapping"){
 
     for (i in 1:Grps[1]) {
       ix <- seq((i-1) * N / Grps[1] + 1, i * N / Grps[1])
-      Sigma[ix, -ix] <- 0.8
+      Sigma[ix, -ix] <- 0.7
     }
     
     if(Num_Layers>=2){
         for (i in 1:Grps[2]) {
           ix <- seq((i-1) * N / Grps[2] + 1, i * N / Grps[2])
-          Sigma[ix, -ix] <- 0.6
+          Sigma[ix, -ix] <- 0.05
         } }else
     if(Num_Layers>=3){
         for (i in 1:Grps[3]) {
       ix <- seq((i-1) * N / Grps[3] + 1, i * N / Grps[3])
-      Sigma[ix, -ix] <- 0.4
+      Sigma[ix, -ix] <- 0.03
         } }else
     if(Num_Layers>=4){
         for (i in 1:Grps[4]) {
       ix <- seq((i-1) * N / Grps[4] + 1, i * N / Grps[4])
-      Sigma[ix, -ix] <- 0.1
+      Sigma[ix, -ix] <- 0
         } } 
     }
 
@@ -178,7 +178,19 @@ Arguments
     elliptical copula
   - elliptal\_copula family name of elliptal copula. Default is to use
     “t”, but “norm” is also accepted
-  - left\_cop
+  - df\_ellip a positive integer specifying the degrees of freedom for
+    the student t elliptic copula. Only required when using
+    elliptal\_copula = “t”.
+  - left\_cop\_param a positive integer specifying the parameter of the
+    **Clayton** copula.
+  - left\_cop\_weight a value between 0 and 1 corresponding to the
+    weight assigned to the left copula, when generating random draws
+    from a hybrid copula.
+  - marginal\_dist a character string specifying the marginal
+    distribution of the simulated data. Must be “norm” or “t”, with the
+    default generating uniformly distributed marginals.
+  - df\_marginal\_dist a positive integer specifying the degrees of
+    freedom parameter of the “t” distributed marginals.
 
 <!-- end list -->
 
@@ -244,33 +256,43 @@ Testing hycop
 ``` r
 set.seed(123)
 
-Corr <- gcVar(N = 50, Clusters = "non-overlapping", Num_Clusters = 2)
-
-
-#First test when marginal_dist=NULL ie unif(0,1)
-#left_cop_param = 6 AND left_cop_weight = 0.7 looks good
-set.seed(123)
-inno <- hycop(Corr, elliptal_copula = "t", df_ellip = 10, left_cop_param = 6, left_cop_weight = 0.7, T = 10000)
-
-inno %>% plot(main = 'Hycop: Unif marginals')
+Corr <- gcVar(N = 50, Clusters = "overlapping", Num_Layers = 3, Num_Clusters = c(10,5,2))
+Corr %>% corrplot::corrplot()
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
 
 ``` r
-inno %>% cor %>%  corrplot::corrplot()
+#First test when marginal_dist=NULL ie unif(0,1)
+#left_cop_param = 6 AND left_cop_weight = 0.7 looks good
+set.seed(123)
+inno <- hycop(Corr, elliptal_copula = "t", df_ellip = 10, left_cop_param = 10, left_cop_weight = 0.4, T = 10000)
+
+inno %>% plot(main = 'Hycop: Unif marginals')
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-2-2.png)<!-- -->
 
 ``` r
-#Using marginal_dist="norm"
-set.seed(123)
-data <- hycop(Corr, elliptal_copula = "t", df_ellip = 10, left_cop_param = 6, left_cop_weight = 0.5, T = 10000, marginal_dist = "norm")
-data %>% plot(main = 'Hycop: norm(0,1) marginals') 
+inno %>% cor %>%  corrplot::corrplot()
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-2-3.png)<!-- -->
+
+``` r
+#Using marginal_dist="norm"
+set.seed(123)
+data <- hycop(Corr, elliptal_copula = "t", df_ellip = 30, left_cop_param = 10, left_cop_weight = 0.5, T = 10000, marginal_dist = "norm")
+data %>% plot(main = 'Hycop: norm(0,1) marginals') 
+```
+
+![](README_files/figure-gfm/unnamed-chunk-2-4.png)<!-- -->
+
+``` r
+data %>% cor %>%  corrplot::corrplot()
+```
+
+![](README_files/figure-gfm/unnamed-chunk-2-5.png)<!-- -->
 
 ``` r
 #Using marginal_dist="t"
@@ -279,7 +301,25 @@ data <- hycop(Corr, elliptal_copula = "t", df_ellip = 10, left_cop_param = 6, le
 data %>% plot(main = 'Hycop: t-dist marginals, df = 8') 
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-2-4.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-2-6.png)<!-- -->
+
+``` r
+plot(data[,1], data[,10], main = 'Hycop: t-dist marginals, df = 8')
+```
+
+![](README_files/figure-gfm/unnamed-chunk-2-7.png)<!-- -->
+
+``` r
+plot(data[,1], data[,ncol(data)], main = 'Hycop: t-dist marginals, df = 8')
+```
+
+![](README_files/figure-gfm/unnamed-chunk-2-8.png)<!-- -->
+
+``` r
+data %>% cor %>%  corrplot::corrplot()
+```
+
+![](README_files/figure-gfm/unnamed-chunk-2-9.png)<!-- -->
 
 # Introducing autocorrelation and Volitility clustering
 
@@ -287,6 +327,10 @@ In this step I introduce autocorrelation and volatility using an
 AR(p,q)+GARCH(q,p) model.
 
 ## Questions
+
+  - How should I deal with the burn in period?
+
+<!-- end list -->
 
 ``` r
 pacman::p_load(fGarch)
