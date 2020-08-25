@@ -612,18 +612,42 @@ model <- list(mu = 0.002,
               ar = 0.01,
               ma = NULL)
 
-#Applying garch.sim to each coloumn in simdat
+#Applying garch.sim to each column in simdat
 simdat <- suppressMessages(
   1:ncol(inno) %>% map(~Garch.sim(model, inno[,.x])) %>% reduce(bind_cols)
   )
+# Naming Each coloumn
 colnames(simdat) <- glue::glue('Asset:{1:ncol(simdat)}')
-simdat %>% gather(key=Asset, value = Return)
+#adding a date column
+simdat <- simdat %>% mutate(date = 1:nrow(simdat), .before = `Asset:1`)
+simdat %>% gather(key=Asset, value = Return, -date)
 }
-
-#Is there a better way to name cols? i.e before we reduce?
-#How do I reduce the list by binding only the return cols?
-mc.data <- suppressMessages(
-1:10 %>% map(~Sim.Asset.Market(corr, T = 500)) %>% reduce(bind_cols)
-)
-colnames(mc.data) <- glue::glue("Universe:{1:ncol(mc.data)}")
 ```
+
+Now lets use the function above to run our first MC simulation.
+
+``` r
+#Is there a better way to name cols? i.e before we reduce?
+mc.data <- suppressMessages(
+1:10 %>% map(~Sim.Asset.Market(corr, T = 500)) %>% reduce(left_join, by = c("date" = "date", "Asset" = "Asset"))
+)
+colnames(mc.data) <- c("date", "Asset", glue::glue("Universe:{1:(ncol(mc.data)-2)}"))
+
+#This is how I want my final output to look. 
+mc.data %>% gather(Universe, Return, c(-date,-Asset))
+```
+
+    ## # A tibble: 99,800 x 4
+    ##     date Asset   Universe     Return
+    ##    <int> <chr>   <chr>         <dbl>
+    ##  1     1 Asset:1 Universe:1  0.0187 
+    ##  2     2 Asset:1 Universe:1 -0.0298 
+    ##  3     3 Asset:1 Universe:1 -0.0716 
+    ##  4     4 Asset:1 Universe:1 -0.0436 
+    ##  5     5 Asset:1 Universe:1 -0.00279
+    ##  6     6 Asset:1 Universe:1 -0.0180 
+    ##  7     7 Asset:1 Universe:1  0.0417 
+    ##  8     8 Asset:1 Universe:1  0.120  
+    ##  9     9 Asset:1 Universe:1  0.0960 
+    ## 10    10 Asset:1 Universe:1  0.0142 
+    ## # ... with 99,790 more rows
