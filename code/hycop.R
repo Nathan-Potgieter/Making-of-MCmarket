@@ -5,7 +5,8 @@ hycop <- function(corr,
                   left_cop_weight = 0.5,
                   T = 251,
                   marginal_dist = NULL,
-                  df_marginal_dist = NULL){
+                  sd_marginal_dist = NULL,
+                  nu_marginal_dist = NULL){
 
     N <- nrow(corr)
     Cor <- P2p(corr)
@@ -37,18 +38,18 @@ hycop <- function(corr,
 
 
     #Converting Uniform marginal distributions to t or norm
-    if(is.null(marginal_dist)==TRUE){
-        return(data)
+    if(marginal_dist=="std"){
+
+        if(is.null(sd_marginal_dist)|is.null(nu_marginal_dist))stop('Please supply a valid sd and nu parameter when using marginal_dist=="std". ')
+        data <- apply(data, 2, qstd, sd = sd_marginal_dist, nu = nu_marginal_dist)
+
     }else
-        if(marginal_dist=="t"){
+        if(marginal_dist=="norm"){
 
-            if(is.null(df_marginal_dist))stop('Please supply a valid degrees of freedom parameter (df_marginal_dist) when using marginal_dist=="t". ')
+            data <- apply(data, 2, qnorm)
 
-            data <- apply(data, 2, qt, df = df_marginal_dist)
+        }
 
-        }else
-            if(marginal_dist=="norm"){
-                data <- apply(data, 2, qnorm)
-            }
+    return(data)
 
 }

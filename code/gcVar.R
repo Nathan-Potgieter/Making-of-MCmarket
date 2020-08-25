@@ -9,7 +9,7 @@ gcVar <-
         if(Clusters == "none"){
             # Unclustered covariance matrix
             Sigma <- diag(N)
-            for (i in 1:N) for (j in 1:N) Sigma[i,j] <- 0.9^abs(i-j)
+            for (i in 1:N) for (j in 1:N) Sigma[i,j] <- 0.7^abs(i-j)
             Sigma <- propagate::cor2cov(Sigma, runif(N, 1, 5))
             corr <- cov2cor(Sigma)
         } else
@@ -19,7 +19,7 @@ gcVar <-
                 # distinct non-overlapping clusters:
                 #----------------------
 
-                if(is.null(Num_Clusters)) stop("Please provide a valid Num_Clusters argument when using Overlapping clusters")
+                if(is.null(Num_Clusters)) stop("Please provide a valid Num_Clusters argument when using non-overlapping clusters")
 
 
                 Sigma <- matrix(0.9, N, N)
