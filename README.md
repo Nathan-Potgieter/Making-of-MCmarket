@@ -22,8 +22,28 @@ structures can be called on to induce mean and variance persistence.
 
 ``` r
 library(pacman)
-p_load(tidyverse, copula, fGarch)
+p_load(tidyverse, copula, fGarch, libridate, bizdays)
 ```
+
+    ## Installing package into 'C:/Users/Acer/Documents/R/win-library/4.0'
+    ## (as 'lib' is unspecified)
+
+    ## Warning: package 'libridate' is not available (for R version 4.0.2)
+
+    ## Warning: unable to access index for repository http://www.stats.ox.ac.uk/pub/RWin/bin/windows/contrib/4.0:
+    ##   cannot open URL 'http://www.stats.ox.ac.uk/pub/RWin/bin/windows/contrib/4.0/PACKAGES'
+
+    ## Warning: 'BiocManager' not available.  Could not check Bioconductor.
+    ## 
+    ## Please use `install.packages('BiocManager')` and then retry.
+
+    ## Warning in p_install(package, character.only = TRUE, ...):
+
+    ## Warning in library(package, lib.loc = lib.loc, character.only = TRUE,
+    ## logical.return = TRUE, : there is no package called 'libridate'
+
+    ## Warning in p_load(tidyverse, copula, fGarch, libridate, bizdays): Failed to install/load:
+    ## libridate
 
 # Generating Covarience matrix
 
@@ -504,7 +524,7 @@ Garch.sim <- function(model= list(), innovations, simple = TRUE){
 }
 ```
 
-Simulating an asset market
+## Simulating an asset market
 
 ``` r
 source("code/gcVar.R")
@@ -524,7 +544,7 @@ inno <- hycop(corr, elliptal_copula = "t",
                       marginal_dist = "norm", 
                       sd_marginal_dist = 1,
                       nu_marginal_dist = 3)
-colnames(inno) <- glue::glue("Asset:{1:ncol(inno)}") #move to hycop
+colnames(inno) <- glue::glue("Asset_{1:ncol(inno)}") #move to hycop
 #inno  %>% cor() %>% corrplot::corrplot()
 
 model <- list(mu = 0.000048,        #Parameters from Statistics and Data Analysis for Financial Engineering pg.421-423
@@ -538,9 +558,9 @@ model <- list(mu = 0.000048,        #Parameters from Statistics and Data Analysi
 
 #Making Simdat tidy
 simdat <- suppressMessages(
-  1:ncol(inno) %>% map(~Garch.sim(model, inno[,.x])) %>% reduce(bind_cols)
+  1:ncol(inno) %>% map(~Garch.sim(model, rev(inno[,.x]))) %>% reduce(bind_cols)
   )
-colnames(simdat) <- glue::glue('Asset:{1:ncol(simdat)}')
+colnames(simdat) <- glue::glue('Asset_{1:ncol(simdat)}')
 
 tidy_simdat <- simdat %>%  mutate(date = 1:nrow(simdat)) %>% 
   gather(key = Asset, value = Return, -date)
@@ -571,8 +591,7 @@ tidy_simdat %>% ggplot() +
 
 ![](README_files/figure-gfm/sim%20market-2.png)<!-- -->
 
-Testing if garchsim has the same issue where vol is exceeding large at
-beginning of simulations
+### Testing if garchsim has the same issue where vol is exceeding large at beginning of simulations
 
 ``` r
 set.seed(1234)
@@ -591,10 +610,10 @@ garchSim(spec, n = 500) %>% plot()
 
 ![](README_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
 
-Simulating an ensemble of asset markets: Prototype
+## Simulating an ensemble of asset markets: Prototype
 
 ``` r
-Sim.Asset.Market <- function(corr, T = 500){
+Sim.Asset.Market <- function(corr, T = 500){    #note that length out is 499 not 500,  look at garchsim to fix
   
   inno <- hycop(corr, elliptal_copula = "t",
                       df_ellip = 4, 
@@ -614,12 +633,19 @@ model <- list(mu = 0.002,
 
 #Applying garch.sim to each column in simdat
 simdat <- suppressMessages(
-  1:ncol(inno) %>% map(~Garch.sim(model, inno[,.x])) %>% reduce(bind_cols)
-  )
+  1:ncol(inno) %>% map(~Garch.sim(model, inno[,.x])) %>% reduce(bind_cols) )
+  
 # Naming Each coloumn
-colnames(simdat) <- glue::glue('Asset:{1:ncol(simdat)}')
+colnames(simdat) <- glue::glue('Asset_{1:ncol(simdat)}')
+
 #adding a date column
-simdat <- simdat %>% mutate(date = 1:nrow(simdat), .before = `Asset:1`)
+bizdays::create.calendar(name = "weekdays", weekdays = c("saturday", "sunday"))
+start_date <- Sys.Date()
+end_date <- bizdays::offset(start_date, nrow(simdat), "weekdays")
+weekdays <- rmsfuns::dateconverter(start_date, end_date, "weekdays")[1:nrow(simdat)]
+
+
+simdat <- simdat %>% mutate(date = weekdays, .before = `Asset_1`)
 simdat %>% gather(key=Asset, value = Return, -date)
 }
 ```
@@ -629,25 +655,25 @@ Now lets use the function above to run our first MC simulation.
 ``` r
 #Is there a better way to name cols? i.e before we reduce?
 mc.data <- suppressMessages(
-1:10 %>% map(~Sim.Asset.Market(corr, T = 500)) %>% reduce(left_join, by = c("date" = "date", "Asset" = "Asset"))
+1:10 %>% map(~Sim.Asset.Market(corr, T = 500)) %>% reduce(left_join, by = c("date","Asset"))
 )
-colnames(mc.data) <- c("date", "Asset", glue::glue("Universe:{1:(ncol(mc.data)-2)}"))
+colnames(mc.data) <- c("date", "Asset", glue::glue("Universe_{1:(ncol(mc.data)-2)}"))
 
 #This is how I want my final output to look. 
 mc.data %>% gather(Universe, Return, c(-date,-Asset))
 ```
 
     ## # A tibble: 99,800 x 4
-    ##     date Asset   Universe     Return
-    ##    <int> <chr>   <chr>         <dbl>
-    ##  1     1 Asset:1 Universe:1  0.0187 
-    ##  2     2 Asset:1 Universe:1 -0.0298 
-    ##  3     3 Asset:1 Universe:1 -0.0716 
-    ##  4     4 Asset:1 Universe:1 -0.0436 
-    ##  5     5 Asset:1 Universe:1 -0.00279
-    ##  6     6 Asset:1 Universe:1 -0.0180 
-    ##  7     7 Asset:1 Universe:1  0.0417 
-    ##  8     8 Asset:1 Universe:1  0.120  
-    ##  9     9 Asset:1 Universe:1  0.0960 
-    ## 10    10 Asset:1 Universe:1  0.0142 
+    ##    date       Asset   Universe     Return
+    ##    <date>     <chr>   <chr>         <dbl>
+    ##  1 2020-08-25 Asset_1 Universe_1  0.0187 
+    ##  2 2020-08-26 Asset_1 Universe_1 -0.0298 
+    ##  3 2020-08-27 Asset_1 Universe_1 -0.0716 
+    ##  4 2020-08-28 Asset_1 Universe_1 -0.0436 
+    ##  5 2020-08-31 Asset_1 Universe_1 -0.00279
+    ##  6 2020-09-01 Asset_1 Universe_1 -0.0180 
+    ##  7 2020-09-02 Asset_1 Universe_1  0.0417 
+    ##  8 2020-09-03 Asset_1 Universe_1  0.120  
+    ##  9 2020-09-04 Asset_1 Universe_1  0.0960 
+    ## 10 2020-09-07 Asset_1 Universe_1  0.0142 
     ## # ... with 99,790 more rows

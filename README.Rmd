@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(pacman)
-p_load(tidyverse, copula, fGarch)
+p_load(tidyverse, copula, fGarch, lubridate, bizdays, sgt)
 
 ```
 
@@ -252,7 +252,7 @@ plot(data, type = "p")
 
 ```
 
-## hycop
+## gen_inno
 
 The function below generates randomly distributed numbers from a hybrid t and clayton copula.
 Need to think about how to calibrate df and claycop parameters. 
@@ -268,17 +268,20 @@ Arguments
 - df_marginal_dist a positive integer specifying the degrees of freedom parameter of the "t" distributed marginals. 
 
 
-```{r hycop function}
+```{r gen_inno function}
 
-hycop <- function(corr,
+gen_inno <- function(corr,
                   elliptal_copula = c("norm", "t"), 
                   df_ellip = NULL, 
                   left_cop_param = 5,
                   left_cop_weight = 0.5,
                   T = 251, 
                   marginal_dist = NULL,
-                  sd_marginal_dist = NULL,
-                  nu_marginal_dist = NULL){
+                  sd_md = NULL,
+                  nu_md = NULL, 
+                  lambda_md = 0, 
+                  p_md = 2, 
+                  q_md = Inf){
   
   N <- nrow(corr)  
   Cor <- P2p(corr)
@@ -312,15 +315,22 @@ data <- left_cop_weight*rCopula(T, Acop) + (1-left_cop_weight)*rCopula(T, Ecop)
 #Converting Uniform marginal distributions to t or norm
 if(marginal_dist=="std"){
           
-          if(is.null(sd_marginal_dist)|is.null(nu_marginal_dist))stop('Please supply a valid sd and nu parameter when using marginal_dist=="std". ')
-          data <- apply(data, 2, qstd, sd = sd_marginal_dist, nu = nu_marginal_dist)
+          if(is.null(sd_md)|is.null(nu_md))stop('Please supply a valid sd and nu parameter when using marginal_dist=="std". ')
+          data <- apply(data, 2, qstd, sd = sd_md, nu = nu_md)
           
         }else
           if(marginal_dist=="norm"){
             
-            data <- apply(data, 2, qnorm)
+             if(is.null(sd_md))stop('Please supply a valid sd parameter when using marginal_dist="norm".')
+             data <- apply(data, 2, qnorm, sd = sd_md)
             
-            }
+            }else
+              if(marginal_dist=="sgt"){
+                
+                if(is.null(sd_md))stop('Please supply a valid sd_md parameter when using marginal_dist="sgt".')
+                data <- apply(data, 2, qsgt, sigma = sd_md, lambda = lambda_md, p = p_md, q = q_md)
+                
+              }
               
               return(data)
             
@@ -328,10 +338,10 @@ if(marginal_dist=="std"){
 
 ```
 
-Testing hycop
+Testing gen_inno
 
 ```{r}
-source("code/hycop.R")
+source("code/gen_inno.R")
 source("code/gcVar.R")
 set.seed(123)
 
@@ -339,15 +349,14 @@ Corr <- gcVar(N = 50, Clusters = "overlapping", Num_Layers = 3, Num_Clusters = c
 Corr %>% corrplot::corrplot()
 
 #Using marginal_dist="std"
-set.seed(123)
-data <- hycop(Corr, elliptal_copula = "t", df_ellip = 10, 
+data <- gen_inno(Corr, elliptal_copula = "t", df_ellip = 10, 
               left_cop_param = 6, left_cop_weight = 0.5, T = 10000,
-              marginal_dist = "std", nu_marginal_dist = 8, sd_marginal_dist = 1)
+              marginal_dist = "sgt", sd_md = 1, lambda_md = -0.2, p = 1.8, q = 2.33)
 
 #Notice how the distribution change when moving to variables outside the specified risk cluster
-data %>% plot(main = 'Hycop: std-distmarginals, nu = 8,  sd = 1') 
-plot(data[,1], data[,10], main = 'Hycop: std-distmarginals, nu = 8,  sd = 1')
-plot(data[,1], data[,ncol(data)], main = 'Hycop: t-dist marginals, nu = 8, sd = 1')
+data %>% plot(main = 'gen_inno: std-distmarginals, nu = 8,  sd = 1') 
+plot(data[,1], data[,10], main = 'gen_inno: std-distmarginals, nu = 8,  sd = 1')
+plot(data[,1], data[,ncol(data)], main = 'gen_inno: t-dist marginals, nu = 8, sd = 1')
 #Note how the correlation matrix has been maintained
 data %>% cor %>%  corrplot::corrplot()
 
@@ -443,7 +452,7 @@ colors <- c("red", "blue", "darkgreen", "gold", "black")
 labels <- c(glue::glue("Param = {degf}"), "normal")
 
 plot(x, hx, type="l", lty=2, xlab="x value",
-  ylab="Density", main="Comparison of SGD Distributions with different p parameters", ylim = c(0,0.8))
+  ylab="Density", main="Comparison of SGD Distributions with different q parameters", ylim = c(0,0.8))
 
 for (i in 1:4){
   lines(x, dsgt(x,q = degf[i]), lwd=2, col=colors[i])
@@ -537,13 +546,13 @@ Garch.sim <- function(model= list(), innovations, simple = TRUE){
 
 ```
 
-Simulating an asset market
+## Simulating an asset market
 
 
 ```{r sim market, fig.width=10}
 
 source("code/gcVar.R")
-source("code/hycop.R")
+source("code/gen_inno.R")
 source("code/Garch.sim.R")
 
 set.seed(1234)
@@ -551,31 +560,37 @@ set.seed(1234)
 corr <- gcVar(N = 20, Clusters = "none", Num_Layers = 3, Num_Clusters = c(2,4,5))  #need to work on Corr matrix generation
 
 
-inno <- hycop(corr, elliptal_copula = "t",
+inno <- gen_inno(corr, elliptal_copula = "t",
                       df_ellip = 4, 
                       left_cop_param = 5, 
                       left_cop_weight =0,
                       T = 500,
-                      marginal_dist = "norm", 
-                      sd_marginal_dist = 1,
-                      nu_marginal_dist = 3)
-colnames(inno) <- glue::glue("Asset:{1:ncol(inno)}") #move to hycop
+                      marginal_dist = "sgt", 
+                      sd_md = 1,
+                      lambda_md = -0.3,
+                      p_md = 1.8)
+
+colnames(inno) <- glue::glue("Asset_{1:ncol(inno)}") #move to gen_inno
 #inno  %>% cor() %>% corrplot::corrplot()
 
+rinno <- 1:ncol(inno) %>% map(~rev(inno[,.])) %>% reduce(bind_cols)
+colnames(rinno) <- glue::glue("Asset_{1:ncol(inno)}")
+
+
 model <- list(mu = 0.000048,        #Parameters from Statistics and Data Analysis for Financial Engineering pg.421-423
-              omega = 0.000050, 
+              omega = 0.000000001, 
               alpha = 0.098839, 
               beta = 0.899506, 
               ar = 0.063666,
               ma = NULL,
               gamma = 0.12194,
-              delta = 1.476643)
+              delta = 1.85)
 
 #Making Simdat tidy
 simdat <- suppressMessages(
   1:ncol(inno) %>% map(~Garch.sim(model, inno[,.x])) %>% reduce(bind_cols)
   )
-colnames(simdat) <- glue::glue('Asset:{1:ncol(simdat)}')
+colnames(simdat) <- glue::glue('Asset_{1:ncol(simdat)}')
 
 tidy_simdat <- simdat %>%  mutate(date = 1:nrow(simdat)) %>% 
   gather(key = Asset, value = Return, -date)
@@ -584,14 +599,14 @@ tidy_simdat <- simdat %>%  mutate(date = 1:nrow(simdat)) %>%
 #simdat %>% spread(key = Asset, value = Return) %>% select(-date) %>% cor() %>% corrplot::corrplot()
 
 #generating and plotting Cum returns
-tidy_simdat %>%  
+'tidy_simdat %>%  
   arrange(date) %>% 
   group_by(Asset) %>%
   mutate(Cum_Return = cumprod(1 + Return)) %>%
   ggplot() + geom_line(aes(x=date, y=Cum_Return, color = Asset)) +
   facet_wrap(~Asset, scales = "free_y") +
   theme_bw() +
-  theme(legend.position = "none") 
+  theme(legend.position = "none") '
 
 
 tidy_simdat %>% ggplot() +
@@ -605,7 +620,7 @@ tidy_simdat %>% ggplot() +
 
 ```
 
-Testing if garchsim has the same issue where vol is exceeding large at beginning of simulations
+### Testing if garchsim has the same issue where vol is exceeding large at beginning of simulations
 ```{r}
 set.seed(1234)
 spec <- garchSpec(model = list(mu = 0.000048,
@@ -625,24 +640,20 @@ garchSim(spec, n = 500) %>% plot()
 ```
 
 
-
-
-
-
-Simulating an ensemble of asset markets: Prototype
+## Simulating an ensemble of asset markets: Prototype
 
 ```{r, fig.width=10}
 
-Sim.Asset.Market <- function(corr, T = 500){
+Sim.Asset.Market <- function(corr, T = 500){    #note that length out is 499 not 500,  look at garchsim to fix
   
-  inno <- hycop(corr, elliptal_copula = "t",
+  inno <- gen_inno(corr, elliptal_copula = "t",
                       df_ellip = 4, 
                       left_cop_param = 5, 
                       left_cop_weight = 0,
                       T = 500,
                       marginal_dist = "std", 
-                      sd_marginal_dist = 1,
-                      nu_marginal_dist = 9)
+                      sd_md = 1,
+                      nu_md = 9)
 
 model <- list(mu = 0.002,
               omega = 1.76E-04, 
@@ -653,12 +664,19 @@ model <- list(mu = 0.002,
 
 #Applying garch.sim to each column in simdat
 simdat <- suppressMessages(
-  1:ncol(inno) %>% map(~Garch.sim(model, inno[,.x])) %>% reduce(bind_cols)
-  )
+  1:ncol(inno) %>% map(~Garch.sim(model, inno[,.x])) %>% reduce(bind_cols) )
+  
 # Naming Each coloumn
-colnames(simdat) <- glue::glue('Asset:{1:ncol(simdat)}')
+colnames(simdat) <- glue::glue('Asset_{1:ncol(simdat)}')
+
 #adding a date column
-simdat <- simdat %>% mutate(date = 1:nrow(simdat), .before = `Asset:1`)
+bizdays::create.calendar(name = "weekdays", weekdays = c("saturday", "sunday"))
+start_date <- Sys.Date()
+end_date <- bizdays::offset(start_date, nrow(simdat), "weekdays")
+weekdays <- rmsfuns::dateconverter(start_date, end_date, "weekdays")[1:nrow(simdat)]
+
+
+simdat <- simdat %>% mutate(date = weekdays, .before = `Asset_1`)
 simdat %>% gather(key=Asset, value = Return, -date)
 }
 ```
@@ -668,9 +686,9 @@ Now lets use the function above to run our first MC simulation.
 ```{r}
 #Is there a better way to name cols? i.e before we reduce?
 mc.data <- suppressMessages(
-1:10 %>% map(~Sim.Asset.Market(corr, T = 500)) %>% reduce(left_join, by = c("date" = "date", "Asset" = "Asset"))
+1:10 %>% map(~Sim.Asset.Market(corr, T = 500)) %>% reduce(left_join, by = c("date","Asset"))
 )
-colnames(mc.data) <- c("date", "Asset", glue::glue("Universe:{1:(ncol(mc.data)-2)}"))
+colnames(mc.data) <- c("date", "Asset", glue::glue("Universe_{1:(ncol(mc.data)-2)}"))
 
 #This is how I want my final output to look. 
 mc.data %>% gather(Universe, Return, c(-date,-Asset))
