@@ -1,0 +1,262 @@
+---
+title: "CorrGan"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(pacman)
+p_load(reticulate)
+use_python("C:/Users/Acer/AppData/Local/Programs/Python/Python38/python.exe", required = TRUE)
+Sys.which("python")
+
+```
+
+# Release of a few pretrained CorrGAN models
+
+### loading packages
+
+```{python}
+
+# %matplotlib inline
+
+import tensorflow as tf
+from tensorflow.keras import layers
+import numpy as np
+from scipy.cluster import hierarchy
+import fastcluster
+from statsmodels.stats.correlation_tools import corr_nearest
+import matplotlib.pyplot as plt
+import warnings
+warnings.filterwarnings("ignore")
+
+
+# dim in [75, 80, 100, 120, 140, 160, 180 200]
+dim = 80
+nsamples = 4
+
+generator = tf.keras.models.load_model(
+    'saved_model/generator_{}d'.format(dim))
+
+noise_dim = 100
+noise = tf.random.normal([nsamples, noise_dim])
+generated_image = generator(noise, training=False)
+    
+a, b = np.triu_indices(dim, k=1)
+
+nearest_corrmats = []
+for i in range(nsamples):
+    corrmat = np.array(generated_image[i, :, :, 0])
+    # set diag to 1
+    np.fill_diagonal(corrmat, 1)
+    # symmetrize
+    corrmat[b, a] = corrmat[a, b]
+    # nearest corr
+    nearest_corrmat = corr_nearest(corrmat)
+    # set diag to 1
+    np.fill_diagonal(nearest_corrmat, 1)
+    # symmetrize
+    nearest_corrmat[b, a] = nearest_corrmat[a, b]
+    # arrange with hierarchical clustering
+    dist = 1 - nearest_corrmat
+    dim = len(dist)
+    tri_a, tri_b = np.triu_indices(dim, k=1)
+    Z = fastcluster.linkage(dist[tri_a, tri_b], method='ward')
+    permutation = hierarchy.leaves_list(
+    hierarchy.optimal_leaf_ordering(Z, dist[tri_a, tri_b]))
+    ordered_corr = nearest_corrmat[permutation, :][:, permutation]
+    nearest_corrmats.append(ordered_corr)
+    
+```
+
+```{python}
+
+plt.figure(figsize=(12, 8))
+for i in range(min(4, len(nearest_corrmats))):
+    plt.subplot(2, 2, i + 1)
+    plt.pcolormesh(nearest_corrmats[i][:, :], cmap='viridis')
+    plt.colorbar()
+plt.show()
+
+```
+
+```{r}
+library(tidyverse, corrplot)
+
+names(py$nearest_corrmats) <- glue::glue("CorMat_{1:length(py$nearest_corrmats)}")
+nearest_corrmats <- py$nearest_corrmats %>% as_tibble()
+nearest_corrmats
+```
+
+
+## CorrGen v1
+```{python}
+
+import numpy as np
+from numpy.random import beta
+from numpy.random import randn
+from scipy.linalg import sqrtm
+from numpy.random import seed
+
+seed(42)
+
+
+def sample_unif_correlmat(dimension):
+    d = dimension + 1
+    prev_corr = np.matrix(np.ones(1))
+    for k in range(2, d):
+        # sample y = r^2 from a beta distribution with alpha_1 = (k-1)/2 and alpha_2 = (d-k)/2
+        y = beta((k - 1) / 2, (d - k) / 2)
+        r = np.sqrt(y)
+        # sample a unit vector theta uniformly from the unit ball surface B^(k-1)
+        v = randn(k-1)
+        theta = v / np.linalg.norm(v)
+        # set w = r theta
+        w = np.dot(r, theta)
+        # set q = prev_corr**(1/2) w
+        q = np.dot(sqrtm(prev_corr), w)
+        next_corr = np.zeros((k, k))
+        next_corr[:(k-1), :(k-1)] = prev_corr
+        next_corr[k-1, k-1] = 1
+        next_corr[k-1, :(k-1)] = q
+        next_corr[:(k-1), k-1] = q
+        prev_corr = next_corr
+    return next_corr
+
+sample_unif_correlmat(10)
+
+
+def sample_data(n=10000):
+    data = []
+    for i in range(n):
+        m = sample_unif_correlmat(3)
+        data.append([m[0, 1], m[0, 2], m[1, 2]])
+        
+    return np.array(data)
+
+
+#Plotting Uniorm corr 
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
+
+
+#Plotting Uniorm corr
+fig = plt.figure(figsize=(10, 8))
+ax = fig.add_subplot(111, projection='3d')
+
+xs = []
+ys = []
+zs = []
+d = sample_data()
+for datum in d:
+    xs.append(datum[0])
+    ys.append(datum[1])
+    zs.append(datum[2])
+
+ax.scatter(xs, ys, zs, alpha=0.2)
+
+ax.set_xlabel('$\\rho_{12}$')
+ax.set_ylabel('$\\rho_{13}$')
+ax.set_zlabel('$\\rho_{23}$')
+
+plt.show()
+
+#CorrGAN
+import tensorflow as tf
+import keras
+
+# GENERATOR
+def generator(Z, hsize=[64, 64, 16], reuse=False):
+    with tf.variable_scope("GAN/Generator", reuse=reuse):
+        h1 = tf.layers.dense(Z, hsize[0], activation=tf.nn.leaky_relu)
+        h2 = tf.layers.dense(h1, hsize[1], activation=tf.nn.leaky_relu)
+        h3 = tf.layers.dense(h2, hsize[2], activation=tf.nn.leaky_relu)
+        out = tf.layers.dense(h3, 3)
+    return out
+
+# Discriminator
+def discriminator(X, hsize=[64, 64, 16], reuse=False):
+    with tf.variable_scope("GAN/Discriminator", reuse=reuse):
+        h1 = tf.layers.dense(X, hsize[0], activation=tf.nn.leaky_relu)
+        h2 = tf.layers.dense(h1, hsize[1], activation=tf.nn.leaky_relu)
+        h3 = tf.layers.dense(h2, hsize[2], activation=tf.nn.leaky_relu)
+        h4 = tf.layers.dense(h3, 3)
+        out = tf.layers.dense(h4, 1)
+    return out, h4
+
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
+
+X = tf.placeholder(tf.float32, [None, 3])
+Z = tf.placeholder(tf.float32, [None, 3])
+G_sample = generator(Z)
+r_logits, r_rep = discriminator(X)
+f_logits, g_rep = discriminator(G_sample, reuse=True)    
+
+
+disc_loss = tf.reduce_mean(
+    tf.nn.sigmoid_cross_entropy_with_logits(
+        logits=r_logits, labels=tf.ones_like(r_logits)) 
+    + tf.nn.sigmoid_cross_entropy_with_logits(
+        logits=f_logits, labels=tf.zeros_like(f_logits)))
+
+gen_loss = tf.reduce_mean(
+    tf.nn.sigmoid_cross_entropy_with_logits(
+        logits=f_logits, labels=tf.ones_like(f_logits)))
+  
+    
+gen_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="GAN/Generator")
+disc_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="GAN/Discriminator")
+
+gen_step = tf.train.RMSPropOptimizer(
+    learning_rate=0.0001).minimize(gen_loss, var_list=gen_vars)
+disc_step = tf.train.RMSPropOptimizer(
+    learning_rate=0.0001).minimize(disc_loss, var_list=disc_vars) 
+    
+sess = tf.Session()
+tf.global_variables_initializer().run(session=sess)
+
+batch_size = 2**8
+nd_steps = 5
+ng_steps = 5
+
+
+def sample_Z(m, n):
+    return np.random.uniform(-1., 1., size=[m, n])
+
+n_dots = 2**12
+x_plot = sample_data(n=n_dots)
+Z_plot = sample_Z(n_dots, 3)
+
+
+
+for i in range(1000):
+    X_batch = sample_data(n=batch_size)
+    Z_batch = sample_Z(batch_size, 3)
+    
+    for _ in range(nd_steps):
+        _, dloss = sess.run([disc_step, disc_loss], feed_dict={X: X_batch, Z: Z_batch})
+    rrep_dstep, grep_dstep = sess.run([r_rep, g_rep], feed_dict={X: X_batch, Z: Z_batch})
+
+    for _ in range(ng_steps):
+        _, gloss = sess.run([gen_step, gen_loss], feed_dict={Z: Z_batch})
+    
+    rrep_gstep, grep_gstep = sess.run([r_rep, g_rep], feed_dict={X: X_batch, Z: Z_batch})
+    
+    if (i <= 1000 and i % 100 == 0) or (i % 10000 == 0):
+        print("Iterations: %d\t Discriminator loss: %.4f\t Generator loss: %.4f"%(i, dloss, gloss))
+        
+        
+        fig = plt.figure(figsize=(10, 8))
+        g_plot = sess.run(G_sample, feed_dict={Z: Z_plot})
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(x_plot[:, 0], x_plot[:, 1], x_plot[:, 2], alpha=0.2)
+        ax.scatter(g_plot[:, 0], g_plot[:, 1], g_plot[:, 2], alpha=0.2)
+
+        plt.legend(["Real Data", "Generated Data"])
+        plt.title('Samples at Iteration %d' % i)
+        plt.tight_layout()
+        plt.show()
+        plt.close()
+```
+
+

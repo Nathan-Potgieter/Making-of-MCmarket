@@ -37,9 +37,14 @@ vignettes/*.pdf
 
 # Never commit data files to github
 data/
+saved_model/
 
 # Tinkering code files
 code/Copula tinkering.R
 code/example_function.R
+
+# Large Gan Model
+saved_model
+
 
 

@@ -1,5 +1,5 @@
 
-Garch.sim <- function(model= list(), innovations, simple = TRUE){
+sim_garch <- function(model= list(), innovations, simple = TRUE){
 
     #default parameters for garch model
     default <- list(omega = 1e-06,
