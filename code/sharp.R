@@ -37,9 +37,9 @@ gen_random_port <- function(dim = 100, sharp = TRUE){
     dates <- SNP_returns %>%
         dplyr::filter(symbol == "A") %>%
         select(date)
-    indx <- sample.int(nrow(dates) - 251, 1)
+    indx <- sample.int(nrow(dates) - 252, 1)
     start_date <- dates[indx,]
-    end_date <- dates[indx + 251,]
+    end_date <- dates[indx + 252,]
     sample_dates <- dates %>% dplyr::filter(date >= start_date[[1]] &
                    date <= end_date[[1]]) %>% pull()
 
@@ -88,8 +88,9 @@ gen_random_port <- function(dim = 100, sharp = TRUE){
     }
 
 }
+
 #------------------------------------------
-#First I generate the labeled training data
+#First Generate the labelled training data
 #------------------------------------------
 
 #Generating N random portfolios, with Sharp ratio's.
@@ -145,7 +146,7 @@ rm(stressed_market)
 gc()
 
 #------------------------------------------
-#Now to generate unlabeled training data
+#Now to generate unlabelled training data
 #------------------------------------------
 
 plan(multiprocess)

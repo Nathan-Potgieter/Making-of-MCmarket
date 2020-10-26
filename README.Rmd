@@ -1,7 +1,9 @@
 ---
 title: "README"
 Author: "Nathan Potgieter"
-output: github_document
+output: 
+  github_document:
+    pandoc_args: --webtex
 ---
 
 ```{r setup, include=FALSE}
@@ -11,26 +13,29 @@ rm(list = ls()) # Clean your environment:
 gc()
 ```
 
-# Introduction
+# Simulating Asset Returns
 
 This is the README for Nathan Potgieter's financial econometrics project, in which a framework the Monte Carlo simulation of asset markets is developed.
 
 ## Aim
-The aim of this project is to develop a general and easy to use Monte Carlo simulation package that generates asset return data, with a prespecified correlation structure and dynamic dependencies. The is to have the user be able to adjust a "leverage" parameter, which will determine the likelihood of entering a "crisis period" characterized by extreme joint drawdowns. Elliptical copulas are used to induce the correlation in the simulated data, while Archmedian copulas are used to adjust the likelihood of joint drawdowns.
+The aim of this project is to develop a general and easy to use Monte Carlo simulation package that generates asset return data, with a prespecified correlation structure and dynamic dependencies. Ideally the user will be able to adjust a "leverage" parameter, which will determine the markets left-tail dependency, and in turn effect likelihood of entering a "crisis period" characterized by extreme joint drawdowns. 
 
-The data will also be simulated to exhibit  ARIMA(p,q) + APGARCH(q,p) features, or volatility clustering, the parameters of which can be adjusted to induce alternative risk characteristics. Various ARIMA(p,q) + APGARCH(q,p) structures can be called on to induce mean and variance persistence.
+Elliptical copulas are used to induce the correlation in the simulated data, while Archmedian copulas are used induce greater left-tail dependencies.
+
+The data will also be simulated to exhibit volatility clustering, this is accomplished by utilizing an ARIMA(p,q) + APGARCH(q,p) model, the parameters of which can be adjusted to induce alternative risk characteristics. Various ARIMA(p,q) + APGARCH(q,p) structures can be called on to induce mean and variance persistence.
 
 ## Monte Carlo Framework
-The simulation routine for a single market involves the following steps:
+The Monte Carlo simulation routine involves the following steps:
 
-1. Draw a series of 252 random uniformly distributed numbers (corresponding to one trading year), across a set of 50 variables (or 50 assets), with a given correlation matrix, from a Euclidean copula (Gaussian or t-copula).
-  + This easily be done using the rcopula function. 
-  
-2. Convert the uniformly distributed marginal distributions to something that more resembles the distribution of asset returns. For example I could convert them into normal, student-t or skewed-generalized t distributions. 
-  + This is done the same way one would convert p-values into test statistics using the dnorm, dt and dsgt functions respectively.
-  
+This example generates 252 days worth of returns, for 50 Assets across N markets.
+
+1. Draw a series of 252 random uniformly distributed numbers (corresponding to 252 trading days), across a set of 50 variables (or 50 assets), from a multivariate distribution with a given correlation matrix. 
+    + This is accomplished using Euclidean (Gaussian or t-copula) and Archmediean copula's and can easily be done using the rcopula function. 
+2. Convert the uniformly distributed marginal distributions into something that more resembles the distribution of asset returns. For example one could convert them into normal or skewed-generalized t distributions. 
+    + This is done the same way one would convert p-values into test statistics using the dnorm() and dsgt() functions respectively.
 3. The next step is to induce mean and variance persistence to the series, by plugging them into a ARIMA(p,q) + GARCH(q,p) equation as innovations. 
-  + If the parameters are set accordingly the resulting series should resemble asset returns. 
+    + If the parameters are set accordingly the resulting series should resemble asset returns. 
+4. The final step is to repeat the first 3 steps N times to generate an ensemble of asset markets, each with the same prespecified structure. 
 
 #### Loading Packages
 ```{r loading packages}
@@ -39,7 +44,8 @@ p_load(tidyverse, copula, fGarch, lubridate, forecast, bizdays, sgt, glue)
 p_load(tbl2xts)
 ```
 
-# Generating Covarience matrix
+# The Set up
+## Generating Ad Hoc Covarience matrix
 
 In this section I developed a simple function that allows the user to easily generate a correlation matrix with a desired cluster structure. This will be used as a key input when simulating our financial markets.  Note that the majority of the code was written by Nico Katzke. The function is located in the gen_corr.R code file. 
 
@@ -146,7 +152,62 @@ gen_corr(N = 60, Clusters = "overlapping", Num_Layers = 4, Num_Clusters = c(10,5
 
 ## Generating a Dataset of Emperical Correlation Matrix's
 
-I now use S&P500 data since 1/01/2000 to  sample correlation matrices that will be used to train CorrGAN at a later stage. The data set is build to contain 3 classes of correlation matrices, defined as follows: 
+I now use S&P500 data since 1/01/2000 to  sample correlation matrices that will be used to train CorrGAN and can be used as inputs in the simulation. 
+
+#### Getting SNP 500 data since 2000
+- See "code/SNP_data.R" to see how the SNP_data.Rda file was created.
+```{r SNP_data, eval=FALSE, echo=TRUE}
+p_load(tidyverse, tidyquant, lubridate)
+source("code/impute_missing_returns.R")
+
+# save current system date to a variable
+today <- Sys.Date()
+# subtract 90 months from the current date
+#date <- today %m+% months(-90)
+date <- as.Date("2000-01-01")
+
+# Getting all tickers in SP500
+stock_list <- tq_index("SP500") %>%
+    arrange(symbol) %>%
+    mutate(symbol = case_when(symbol == "BRK.B" ~ "BRK-B",
+                              symbol == "BF.B" ~ "BF-B",
+                              TRUE ~ as.character(symbol))) %>%
+    pull(symbol)
+
+# This function gets the data for a ticker and date
+get_data <- function(ticker = "AAPL", from){
+    df <- tq_get(ticker, from = from) %>% mutate(symbol = rep(ticker, length(date)))
+    return(df)
+}
+
+SNP_data <-
+    1:length(stock_list) %>% map(~get_data(ticker = stock_list[[.]], from = date)) %>% bind_rows()
+save(SNP_data, file = "data/SNP_data.Rda")
+
+#Calculating and imputing missing returns
+SNP_returns <- left_join(
+    SNP_data %>%
+        group_by(symbol) %>%
+        arrange(date) %>%
+        mutate(return = log(adjusted/dplyr::lag(adjusted))) %>%
+        dplyr::filter(date>first(date)) %>%
+        select(date, symbol, return) %>%
+        spread(symbol, return) %>%
+        impute_missing_returns(impute_returns_method = "Drawn_Distribution_Own") %>% #Imputing missing returns
+        gather(symbol, return, -date) %>%
+        group_by(symbol) %>%
+        mutate(sd = sd(return, na.rm = T)*sqrt(252)) %>%  # calculate annualized SD
+        ungroup(),
+    SNP_data %>%
+        select(date, symbol, volume, adjusted),
+    by = c("date", "symbol")
+)
+save(SNP_returns, file = "data/SNP_returns.Rda")
+```
+
+#### Partisioning SNP Data into Rally, Normal and Stressed Markets
+- See "code/get_training_data.R" to see how the training data sets were generated.
+The data set is build to contain 3 classes of correlation matrices, defined as follows: 
 
 - ‘stressed market’: A market is ‘stressed’ whenever the equi-weighted basket of stocks has a Sharpe below -0.5 over the year of study (252 trading days).
 
@@ -156,10 +217,175 @@ I now use S&P500 data since 1/01/2000 to  sample correlation matrices that will 
 
 Note that this methodology is consistent with that used in https://marti.ai/qfin/2020/02/03/sp500-sharpe-vs-corrmats.html.
 
-- See "code/SNP_data.R" to see how the SNP_data.Rda file was created.
-- See "code/get_training_data.R" to see how the training data sets were generated.
+```{r sharp, eval=FALSE, echo=TRUE}
+load("data/SNP_data.Rda")
+source("code/impute_missing_returns.R")
 
-```{r showing some training data}
+library(pacman)
+p_load(tidyverse, furrr, PerformanceAnalytics, tbl2xts, rmsfuns, lubridate, fitHeavyTail)
+
+# Imputing missing values
+SNP_returns <- left_join(
+    SNP_data %>%
+        group_by(symbol) %>%
+        arrange(date) %>%
+        mutate(return = log(adjusted/dplyr::lag(adjusted))) %>%
+        dplyr::filter(date>first(date)) %>%
+        select(date, symbol, return) %>%
+        spread(symbol, return) %>%
+        impute_missing_returns(impute_returns_method = "Drawn_Distribution_Own") %>% #Imputing missing returns
+        gather(symbol, return, -date) %>%
+        ungroup(),
+    SNP_data %>%
+        select(date, symbol, volume, adjusted),
+    by = c("date", "symbol")
+)
+#Freeing up memory
+rm(SNP_data)
+gc()
+
+#This function generates random portfolios with option to supply sharp ratio
+gen_random_port <- function(dim = 100, sharp = TRUE){
+    #list of Assets from which sample
+    symbols <- SNP_returns %>%
+        dplyr::filter(date==first(date)) %>%
+        pull(symbol)
+    dim <- dim
+    sample_symbols <- sample(symbols, dim)
+
+    #Dates from which to sample
+    dates <- SNP_returns %>%
+        dplyr::filter(symbol == "A") %>%
+        select(date)
+    indx <- sample.int(nrow(dates) - 252, 1)
+    start_date <- dates[indx,]
+    end_date <- dates[indx + 252,]
+    sample_dates <- dates %>% dplyr::filter(date >= start_date[[1]] &
+                   date <= end_date[[1]]) %>% pull()
+
+    if(sharp == FALSE){
+        training_data <- list(dates = list(sample_dates),
+                              symbols = list(sample_symbols)) %>% as_tibble()
+    }else
+        if(sharp == TRUE){
+            #setting rebalance months
+            RebMonths <- c(1,4,7,10)
+            EQweights <-
+                SNP_returns %>%
+                dplyr::filter(symbol %in% sample_symbols &
+                                  date %in% sample_dates) %>%
+                select(date, symbol, return) %>%
+                mutate(Months = as.numeric(format(date, format = "%m")),
+                       YearMonths = as.numeric(format(date, format = "%Y%m"))) %>%
+                dplyr::filter(Months %in% RebMonths) %>%
+                group_by(YearMonths, Months, symbol) %>%
+                dplyr::filter(date == last(date)) %>%
+                ungroup() %>%
+                group_by(date) %>%
+                mutate(weight = 1/n()) %>%
+                select(date, symbol, weight) %>%
+                spread(symbol, weight) %>% ungroup() %>%
+                tbl_xts()
+
+            # Return wide data
+            Returns <-
+                SNP_returns %>%
+                dplyr::filter(symbol %in% sample_symbols &
+                                  date %in% sample_dates) %>%
+                select(date, symbol, return) %>%
+                spread(symbol, return) %>% tbl_xts()
+
+            #calculating portfolio returns
+            EW_RetPort <- rmsfuns::Safe_Return.portfolio(Returns,
+                                               weights = EQweights, lag_weights = TRUE,
+                                               verbose = TRUE, contribution = TRUE,
+                                               value = 100, geometric = TRUE)
+            Sharp <- SharpeRatio(EW_RetPort$returns, FUN="StdDev", annualize = TRUE)
+
+            training_data <- list(dates = list(sample_dates),
+                                  symbols = list(sample_symbols),
+                                  sharp = Sharp[1]) %>% as_tibble()
+    }
+
+}
+#------------------------------------------
+#First I generate the labeled training data
+#------------------------------------------
+
+#Generating N random portfolios, with Sharp ratio's.
+plan(multiprocess)
+training_data_sharp <-
+    1:10000 %>% future_map(~gen_random_port(dim = 50), .progress = TRUE) %>% reduce(bind_rows)
+save(training_data_sharp, file = "data/training_data_sharp.Rda")
+
+load("data/training_data_sharp.Rda")
+
+# Separating by sharp ratio into market types.
+stressed_market <- training_data_sharp %>% dplyr::filter(sharp < -0.05) %>% select(-sharp)
+
+rally_market <- training_data_sharp %>% dplyr::filter(sharp > 0.2) %>% select(-sharp)
+
+normal_market <- training_data_sharp %>% dplyr::filter(sharp >= -0.5 & sharp <= 0.2) %>% select(-sharp)
+
+#This function gathers the SNP data corresponding to the portfolios described above
+get_market_data <- function(index_df, i){
+        SNP_returns %>%
+        select(date, symbol, return) %>%
+            dplyr::filter(symbol %in% index_df$symbols[[i]] &
+                       date %in% index_df$dates[[i]])
+}
+
+#Separating portfolio by sharp ratio
+stressed_market_data <- 1:nrow(stressed_market) %>% map(~get_market_data(stressed_market, .x))
+
+rally_market_data <- 1:nrow(rally_market) %>% map(~get_market_data(rally_market, .x))
+
+normal_market_data <- 1:nrow(normal_market) %>% map(~get_market_data(normal_market, .x))
+
+#Calculating correlations
+calc_cor <- function(df, i){
+    df[[i]] %>% select(date, symbol, return) %>%
+        spread(symbol, return) %>% select(-date) %>%
+        fitHeavyTail::fit_mvt() %>% .$cov %>% cov2cor()
+}
+
+stressed_market_corr <- 1:length(stressed_market_data) %>% map(~calc_cor(stressed_market_data, .x))
+
+rally_market_corr <- 1:length(rally_market_data) %>% map(~calc_cor(rally_market_data, .x))
+
+normal_market_corr <- 1:length(normal_market_data) %>% map(~calc_cor(normal_market_data, .x))
+
+#Joining and saving datasets
+labeled_training_data <- list(stressed_market = stressed_market_corr,
+                              rally_market = rally_market_corr,
+                              normal_market = normal_market_corr)
+save(labeled_training_data, file = "data/labeled_training_data.Rda")
+
+rm(stressed_market)
+gc()
+
+#------------------------------------------
+#Now to generate unlabeled training data
+#------------------------------------------
+
+plan(multiprocess)
+training_data_indx <-
+    1:10000 %>% future_map(~gen_random_port(dim = 50, sharp = FALSE), .progress = TRUE) %>% reduce(bind_rows)
+
+market_data <- 1:nrow(training_data) %>% future_map(~get_market_data(training_data, .x), .progress = TRUE)
+
+training_data <- 1:length(market_data) %>% map(~calc_cor(market_data, .x))
+
+
+save(training_data, file = "data/training_data.Rda")
+
+
+
+```
+
+#### An Example of Each Correlation Matrix Type
+
+```{r showing some training data, echo=FALSE}
 load("data/labeled_training_data.Rda")
 
 labeled_training_data$rally_market[[2]] %>% 
@@ -171,14 +397,13 @@ labeled_training_data$stressed_market[[2]] %>%
 
 ```
 
+# Step 1: Draw a series of random uniformly distributed numbers across a set of variables with a specified dependence structure.
+
 ## Generating Random Draws with Numerous Copula Functions
 
 ### Elliptal copulas
 
-Elliptal copulas such as the Gaussian and the student t copulas, allow us to specify a correlation matrix as a parameter. Doing so allows one to produce random draws of uniformly distributed variables, that contain the correlation structure and joint distribution specified by the copula. The chunk of code below demonstrates this functionality. 
-
-Unfortunately, both Elliptal copulas cannot be calibrated to exhibit increased co-movements within the tails of the distribution. Therefore, in the next section we examine some properties of Archimedean copulas. 
-
+Elliptal copulas such as the Gaussian and the student t copulas, allow us to specify a correlation matrix before randomly selecting observations from the multivariate distribution. Doing so allows one to produce random draws of uniformly distributed variables, that contain the correlation structure and joint distribution specified by the copula. The chunk of code below demonstrates this functionality. 
 
 ```{r Elliptal Copulas, warning=FALSE}
 #loading copula package
@@ -216,7 +441,8 @@ p3 <- fitHeavyTail::fit_mvt(rt) %>% .$cov %>% cov2cor() %>%
   scale_x_discrete(labels = NULL) + scale_y_discrete(labels = NULL) +
   theme(legend.position = "none")
 
-rn %>% as_tibble()
+p_load(printr)
+summary(rn)
 
 p1
 #Notice that the underlying correlation structure has, for the most part, been maintained.
@@ -228,23 +454,37 @@ p1
 
 ```
 
-### Archimedean copulas
+### Archimedean Copulas
 
-Archimedean copulas such as the clayton, frank, gumbel and joe exhibit increased dependence at the tails of the multivariate distribution. In this section we will examine the clayton, .... copulas due to them  exhibiting enhanced left-tail dependencies. We will also have a look at the hybrid BB1-BB6 which in which exhibit increased dynamic dependencies in both tails. 
+Unfortunately, Elliptal copulas cannot be calibrated to exhibit varying co-movements within the tails of the distribution. Therefore, in this section we examine some properties of Archimedean copulas. 
 
-```{r arch copulas, fig.show='hide', include=FALSE}
+Archimedean copulas such as the Clayton, Frank, Gumbel and Joe exhibit increased dependence at the tails of the multivariate distribution. In this section we will examine the Clayton copula due to it  exhibiting enhanced left-tail dependencies. Other copulas will not be examined, since the Clayton copula is currently the only Archimedean copula, in the copula package, that allows random sampling from multivariate distributions with Dim > 2. 
+
+We will also have a look at the hybrid BB1-BB6 which in which exhibit increased dynamic dependencies in both tails. 
+
+```{r Archimedean copula}
 # first look at at dim=2 to get understanding of what parameter tning does
 
 #Clayton Copula
-claycop <- archmCopula(family = "clayton", param = 1.5, dim = 2)
+claycop <- archmCopula(family = "clayton", param = 2, dim = 2)
+Ncop <- ellipCopula(family = "normal", dispstr = "un", param = 0.5, dim = 2)
 # rCopula(251, claycop)
 
 #note how left tail dependence increases with the parameter
 persp(claycop, main = "Clayon Copula" , dCopula, zlim = c(0, 15), theta = 18)
-rCopula(10000, copula = claycop) %>% as_tibble() %>% 
+persp(Ncop, main = "Normal Copula" , dCopula, zlim = c(0, 15), theta = 18)
+
+# Compairing Clayton with Normal copula
+bind_rows(rCopula(5000, copula = claycop) %>% as_tibble() %>% mutate(copula = "claycop"),
+          rCopula(5000, copula = Ncop) %>% as_tibble() %>% mutate(copula = "normal")) %>% 
   ggplot(aes(x=V1,y=V2)) +
-  geom_point(alpha=0.5) +
-  geom_density_2d_filled(alpha=0.7)
+        geom_point(alpha=0.5) +
+        geom_density_2d_filled(alpha=0.7) +
+        facet_wrap(~copula, nrow = 1) +
+        labs(title = "2D kernal Density - Clayton vs Normal Copula",
+             caption = "Clayton parameter = 2, Normal correlation = 0.5") +
+        theme_bw() +
+        theme(legend.position = "bottom") 
 
 #Note that the Gumbel and Joe copulas must be rotated 180 degrees to exhibit greater left tail dependence
 #Gumbel Copula
@@ -270,16 +510,19 @@ rCopula(10000, copula = claycop) %>% as_tibble() %>%
 
 ```
 
-# Generating 2D Hybrid Copulas
+## Generating Hybrid Copulas
 
-Tawn's (1988) Theorem: Shows that a copula is a convex set and every convex combination of existing copula functions is again a copula. See "Extreme Dependence Structures and the Cross-Section of Expected Stock Returns" page 8 & 9. 
+Tawn's (1988) Theorem: Shows that a copula is a convex set and every convex combination of existing copula functions is again a copula. 
 
-Some 2D hybrid copulas are plotted bellow.
+Thus, if  $C_1(U_N)$  and  $C_2(U_N)$  are multivariate copula's of dimension N and $w$ is a weighting variable between 0 and 1, then 
 
-![Plot 1.](plots/plot_1.png)
-![Plot 2.](plots/plot_2.png)
-![Plot 3.](plots/plot_3.png)
-![Plot 4.](plots/plot_4.png)
+<center> $$C(U_N)=w.C_1(U_N)+(1-w)C_2(U_N)$$ </center>
+
+is a unique copula. Therefore, a hybrid copula ( $C(U_N)$ ) can be created by linearly weighting a Elliptical and Archimedean copula of the same dimension. 
+
+See "Extreme Dependence Structures and the Cross-Section of Expected Stock Returns" page 8 & 9. 
+
+## Some 2D Hybrid Copulas.
 
 ```{r hybrid, eval=FALSE, include=FALSE}
 #this chunk takes very long to knit due to large graph size; consider using {eval=FALSE, include=FALSE}
@@ -349,11 +592,38 @@ ggsave(plot_3, filename = "plots/plot_3.png", width = 8, height = 8)
 ggsave(plot_4, filename = "plots/plot_4.png", width = 8, height = 8)
 
 ```
-# Looking at options for marginal distributions
+![Plot 1.](plots/plot_1.png)
+![Plot 2.](plots/plot_2.png)
+![Plot 3.](plots/plot_3.png)
+![Plot 4.](plots/plot_4.png)
 
-After investigating numerous possible marginal distributions, I have settles on the Skewed generalized t distribution as it allows for the most flexibility. 
+However, remember that each variable is currently uniformly distributed.
+```{r echo=FALSE, warning=FALSE}
+rCopula(10000, copula = claycop) %>% as_tibble() %>% gather(Key, Value) %>% 
+  ggplot(aes(x = Value, fill = Key)) +
+  geom_histogram(bins = 30) +
+  xlim(c(0,1)) +
+  facet_wrap(~Key, nrow = 2) +
+  labs(title = "Hiostogram", subtitle = "Variables are Uniformly Distrinuted") +
+  theme_bw() +
+  theme(legend.position = "none")
 
-## The skewed generalizd t distribution with different parameters
+```
+
+# Step 2: Converting the uniformly distributed variables to something that better resembles the distribution of asset returns.
+
+## Looking at options for marginal distributions
+
+Due to convenience, it has become standard to use the normal, or student-t distribution when simulating asset returns.
+
+However, after reading up on numerous possible marginal distributions, I decided that the the Skewed generalized t distribution is the most appropriate as it allows for the most flexibility. Note that I will also include functionality to induce the marginals to be uniformly distributed. 
+
+In fact, the SGT distribution nests 12 common probability distribution functions (pdf). The tree diagram below indicates how one can set the SGT parameters to achieve the desired pdf. 
+
+![Plot 5.](plots/SGTtree.png)
+
+### The skewed generalizd t distribution with different parameters
+The code below demonstrates how the p, q and $\lambda$ functions influence the SGT distribution.
 ```{r, echo=FALSE}
 library(pacman, tidyverse)
 p_load(sgt)
@@ -425,7 +695,7 @@ gc()
 
 ```
 
-## Calibrating the SGT with architypal low, med and high risk assets
+### Calibrating the SGT with Architypal Low, Medium and High Risk Assets
 
 We now look at data on each share in the S&P500 over the last 90 months. The shares with the top 5% highest annualized SD's are used to model an archetypal high risk asset, shares with the 5% lowest annualized SD's are used to model an archetypal low risk asset, while shares with SD between the 45th and 55th percentile are used to model the medium risk asset. 
 - See "code/SNP_data.R" to see how the SNP_data.Rda file was created. 
@@ -438,14 +708,14 @@ high_vol <-
   dplyr::filter(date==last(date)) %>% 
   arrange(desc(sd)) %>% 
   group_by(date) %>% 
-  slice_max(., order_by = sd, prop = 0.05 ) %>%  #select top 10% SD's
+  slice_max(., order_by = sd, prop = 0.1 ) %>%  #select top 10% SD's
   pull(symbol)
 
 low_vol <-
   SNP_returns %>% 
   dplyr::filter(date==last(date)) %>% 
   arrange(sd) %>% 
-  slice_min(., order_by = sd, prop = 0.05) %>% #select bot 10% SD's
+  slice_min(., order_by = sd, prop = 0.1) %>% #select bot 10% SD's
   pull(symbol)
 
 medium_vol <-
@@ -575,7 +845,6 @@ p1 <- kde_plot(resid_high_vol, sgt_pars,
          fill = "red", 
          xlim = c(-0.15,0.15),
          ylim = NULL)
-p1
 
 p2 <- kde_plot(resid_high_vol, sgt_pars, 
          fill = "darkred", 
@@ -627,7 +896,9 @@ gc()
 ```
 
 
-# Simulating Innovations
+## Simulating Innovations
+This section introduces the sim_inno function, which is designed to carry out the first two steps of this Monte Carlo framework.
+
 ### sim_inno
 
 The function below generates randomly distributed numbers from a hybrid t and clayton copula.
@@ -645,27 +916,23 @@ Arguments
 
 
 ```{r sim_inno function}
-
-sim_inno <- function(corr,
-                  elliptal_copula = c("norm", "t"), 
-                  df_ellip = NULL, 
-                  left_cop_param = 5,
-                  left_cop_weight = 0,
-                  T = 251, 
-                  marginal_dist = NULL,
-                  marginal_dist_model = NULL,
-                  sd_md = NULL){
+sim_inno <- function(corr, elliptal_copula = c("norm", "t"), 
+                  df_ellip = NULL, left_cop_param = 5,
+                  left_cop_weight = 0, T = 251, 
+                  marginal_dist = NULL, marginal_dist_model = NULL, sd_md = NULL) {
   
   N <- nrow(corr)
   T <- T + 5
   Cor <- P2p(corr)
 
-#specifying  Copula's
-#elliptal
-  if(elliptal_copula == "t"){
-    
+# specifying  Copula's
+# elliptical
+  if(elliptal_copula == "t") {
+    # warning
     if(is.null(df_ellip))stop('Please supply a valid degrees of freedom parameter when using elliptal_copula = "t". ')
-    Ecop <- ellipCopula(family = elliptal_copula, dispstr = "un", df = df_ellip, param = Cor, dim = N)
+    
+    Ecop <- ellipCopula(family = elliptal_copula, dispstr = "un", df = df_ellip,
+                        param = Cor, dim = N)
     
     }else
       if(elliptal_copula == "norm"){
@@ -675,38 +942,42 @@ sim_inno <- function(corr,
     }else
       stop("Please supply a valid argument for elliptal_copula")
 
-#left-cop
+# Left-cop (Archemedian copula)
   Acop <- archmCopula(family = "clayton", param = left_cop_param, dim = N)
   
   
-#generating random uniformly distributed data
+#generating random draws from copula's, uniformly distributed data
   if(left_cop_weight<0|left_cop_weight>1)stop("Please provide a valid left_cop_weight between 0 and 1")   
   
-  if(left_cop_weight==0){
-   data <- rCopula(T, Ecop)
- }else
-   if(left_cop_weight==1){
-   data <- rCopula(T, Acop)
- }else
-    data <- left_cop_weight*rCopula(T, Acop) + (1-left_cop_weight)*rCopula(T, Ecop)
-
-
+  if(left_cop_weight==0) {
+    data <- rCopula(T, Ecop)
+ } else
+   if(left_cop_weight==1) {
+     data <- rCopula(T, Acop)
+ } else
+   data <- left_cop_weight*rCopula(T, Acop) + (1-left_cop_weight)*rCopula(T, Ecop)
+   
+  #naming and converting data to tibble
+  colnames(data) <- glue::glue("Asset_{1:ncol(data)}")
+  data <- as_tibble(data)
+    
 #Converting Uniform marginal distributions to norm or sgt. 
  if(marginal_dist=="norm"){
             
              if(is.null(sd_md))stop('Please supply a valid sd_md parameter when using marginal_dist="norm".')
-             data <- apply(data, 2, qnorm, sd = sd_md)
+             data <- data %>% map_df(~qnorm(.x, sd_md))
             
             }else
               if(marginal_dist=="sgt"){
                 
                 if(is.null(marginal_dist_model))stop('Please supply a valid marginal_dist_model when using marginal_dist="sgt".')
-                
+                   mu <- marginal_dist_model$mu
+                   mu <- marginal_dist_model$sigma
                    lambda <- marginal_dist_model$lambda
                    p <- marginal_dist_model$p
                    q <- marginal_dist_model$q
                   
-                   data <- apply(data, 2, qsgt, sigma = 1, lambda = lambda, p = p, q = q)
+                   data <- data %>% map_df(~qsgt(.x, mu =  mu, sigma = sigma, lambda = lambda, p = p, q = q))
                   
               }
               
@@ -718,89 +989,114 @@ sim_inno <- function(corr,
 
 ### Testing sim_inno
 
-```{r , fig.width=9, fig.height=9, fig.align=TRUE}
+```{r sim_inno test, fig.width=10, fig.height=10, fig.align=TRUE}
+# Sourcing function, loading data and setting seed
 source("code/sim_inno.R")
 source("code/gen_corr.R")
-set.seed(123)
+load("data/sgt_low_vol.Rda")
+set.seed(872154)
 
 Corr <- gen_corr(N = 50, Clusters = "overlapping", Num_Layers = 3, Num_Clusters = c(10,5,2))
+# ----------------------------------------
+# Simulating data with marginal_dist="sgt"
+# ----------------------------------------
+sgt_pars <- as.list(sgt_low_vol$estimate)
+data_sgt <- sim_inno(corr = Corr, 
+                 elliptal_copula = "t",
+                 df_ellip = 4,
+                 left_cop_param = 10,
+                 left_cop_weight = 0,
+                 marginal_dist = "sgt",
+                 marginal_dist_model = sgt_pars,
+                 T = 500)
+colnames(data_sgt) <- glue::glue("V{1:ncol(data_sgt)}")
 
-#Using marginal_dist="std"
-sgt_pars <- list(mu = 0.0001715299, sigma = 0.01850809, lambda = -0.08140381, p = 1.880649, q = 1.621578)
-data <- sim_inno(corr = Corr, 
-         elliptal_copula = "t",
-         df_ellip = 4,
-         left_cop_param = 10,
-         left_cop_weight = 0,
-         marginal_dist = "sgt",
-         marginal_dist_model = sgt_pars,
-         T = 10000)
-colnames(data) <- glue::glue("V{1:ncol(data)}")
-data <- as_tibble(data)
+# ----------------------------------------
+# Simulating data with marginal_dist="norm"
+# ----------------------------------------
+data_norm <- sim_inno(corr = Corr, 
+                 elliptal_copula = "t",
+                 df_ellip = 4,
+                 left_cop_param = 10,
+                 left_cop_weight = 0,
+                 marginal_dist = "norm",
+                 sd_md = 0.02311859,
+                 T = 500)
+colnames(data_norm) <- glue::glue("V{1:ncol(data_norm)}")
 
-#Note how the correlation matrix has been maintained
-data %>% fitHeavyTail::fit_mvt() %>% .$cov %>% cov2cor() %>% ggcorrplot::ggcorrplot()
-#and how the distribution change when moving to variables outside the specified risk cluster
+# ------------------------
+# Plotting Simulated Data
+# ------------------------
 
-plot_2d_density <- function(x, y, title, subtitle, xlab = NULL, ylab = NULL, lim = c(-2,2)){
-  data %>% ggplot(aes(x=x, y=y)) +
-   geom_point(alpha = 0.3) +
-    geom_density_2d_filled(alpha = 0.7) +
-  coord_cartesian(xlim = lim, ylim = lim) +
+# First: Note how the correlation matrix has been maintained
+data_sgt %>% fitHeavyTail::fit_mvt() %>% .$cov %>% cov2cor() %>% ggcorrplot::ggcorrplot()
+
+# Plotting SGT data
+data_sgt %>% gather(key, value, -V1) %>% 
+    mutate(Cluster = case_when( key %in% c("V2","V3","V4","V5") ~ "First Cluster",
+                                key %in% c("V6","V7","V8","V9","V10") ~ "Second Cluster",
+                                key %in% c("V11","V12","V13","V14","V15") ~ "Outside Cluster")) %>% 
+    na.omit() %>% 
+    ggplot(aes(x = V1, y = value)) +
+    geom_point(alpha=0.4) +
+    geom_density_2d_filled(alpha = 0.7, bins = 10) +
+    facet_wrap(~Cluster, nrow = 3, 
+               scales = "free_y") +
     theme_bw() +
-    ggtitle(title, subtitle) +
-    xlab(xlab) +
-    ylab(ylab)
-}
+    labs(title = "2D Density plot of SGT Distributed Data")
 
-plot_2d_density(x = data$V1, y = data$V2, 
-                title = "2d Density plot of SGT Innovations", subtitle = "within first cluster", 
-                xlab = "V1", ylab = "V2")
-plot_2d_density(x = data$V1, y = data$V6, 
-                title = "2d Density plot of SGT Innovations", subtitle = "within seconed cluster", 
-                xlab = "V1", ylab = "V6")
-plot_2d_density(x = data$V1, y = data$V11, 
-                title = "2d Density plot of SGT Innovations", subtitle = "outside cluster", 
-                xlab = "V1", ylab = "V11")
+# Plotting Normally distributed data
+data_norm %>% gather(key, value, -V1) %>% 
+    mutate(Cluster = case_when( key %in% c("V2","V3","V4","V5") ~ "First Cluster",
+                                key %in% c("V6","V7","V8","V9","V10") ~ "Second Cluster",
+                                key %in% c("V11","V12","V13","V14","V15") ~ "Outside Cluster")) %>% 
+    na.omit() %>% 
+    ggplot(aes(x = V1, y = value)) +
+    geom_point(alpha=0.4) +
+    geom_density_2d_filled(alpha = 0.7, bins = 10) +
+    facet_wrap(~Cluster, nrow = 3, 
+               scales = "free_y") +
+    theme_bw() +
+    labs(title = "2D Density plot of Normally Distributed Data")
 
 ```
 
-
-# Introducing Volitility Persistence 
+# Step 3: Introducing Volitility Persistence 
  
 The simulated innovations do not yet demonstrate the mean and/or volatility persistence observed in real asset return series, hence why I refer to them as innovations.
 ```{r archlm}
-p1 <- ggAcf(data$V1) + theme_bw() + labs(title = "ACF of Innovations")
-p2 <- ggAcf(data$V1^2) + theme_bw() + labs(title = "ACF of Squared Innovations")
+p1 <- ggAcf(data_sgt$V1) + theme_bw() + labs(title = "ACF of Innovations")
+p2 <- ggAcf(data_sgt$V1^2) + theme_bw() + labs(title = "ACF of Squared Innovations")
 p <- p1 / p2 
 p + plot_annotation(title = "No Significant Persistence in Mean or Volatility")
 ```
 
 In this step I introduce autocorrelation and volatility using an AR(p,q) + APGARCH(q,p) model. 
 
-- "The leptokurtosis, clustering volatility and leverage effects characteristics of financial time series justifies the GARCH modeling approach. The non-linear characteristic of the time series is used to check the Brownian motion and investigate into the temporal evolutionary patterns. The nonlinear methods of forecasting and signal analysis are gaining popularity in stock market because of their robustness in feature extraction and classiﬁcation." https://towardsdatascience.com/garch-processes-monte-carlo-simulations-for-analytical-forecast-27edf77b2787
+- "The leptokurtosis, clustering volatility and leverage effects characteristics of financial time series justifies the GARCH modelling approach. The non-linear characteristic of the time series is used to check the Brownian motion and investigate into the temporal evolutionary patterns. The nonlinear methods of forecasting and signal analysis are gaining popularity in stock market because of their robustness in feature extraction and classiﬁcation." source: https://towardsdatascience.com/garch-processes-monte-carlo-simulations-for-analytical-forecast-27edf77b2787
 
-
-My go at writing a GARCHSIM function, much of the code was borrowed from fGarch's garchspec and garchsim functions. 
+## sim_garch
+This function introduces mean and variance persistence by plugging in the numbers generated by the sim_inno function as innovations in the GARCH process.
+Note that most of code was borrowed from fGarch's garchspec and garchsim functions. 
 
 ```{r sim_garch}
 
 sim_garch <- function(model= list(), innovations, simple = TRUE){
-  
-  #default parameters for garch model  
+    
+    #default parameters for garch model  
     default <- list(omega = 1e-06, 
-                   alpha = 0.1,
-                   gamma = NULL, 
-                   beta = 0.8, 
-                   mu = 0,   #changed form NULL to 0
-                   ar = NULL, 
-                   ma = NULL, 
-                   delta = 2)
+                    alpha = 0.1,
+                    gamma = NULL, 
+                    beta = 0.8, 
+                    mu = 0,   #changed form NULL to 0
+                    ar = NULL, 
+                    ma = NULL, 
+                    delta = 2)
     
     default[names(model)] <- model
     model <- default   
     
-  #obtaining parameters and lag orders from model object
+    #obtaining parameters and lag orders from model object
     mu <- model$mu 
     ar <- model$ar
     ma <- model$ma
@@ -817,14 +1113,14 @@ sim_garch <- function(model= list(), innovations, simple = TRUE){
     max.order <- max(order.ar, order.ma, order.alpha, order.beta)
     n <- length(innovations) - 5
     
-   if(max.order>5)stop("Please supply a volitility model with max order less than or equal to 5")
+    if(max.order>5)stop("Please supply a volitility model with max order less than or equal to 5")
     
-  #Generating innovations
+    #Generating innovations
     z_length <- n + max.order
     z <- c(innovations)[1:z_length]  #must change this later
     
     h <- c(rep(model$omega/(1 - sum(model$alpha) - sum(model$beta)), 
-            times = max.order), rep(NA, n))    #sd's
+               times = max.order), rep(NA, n))    #sd's
     
     y <- c(rep(model$mu/(1 - sum(model$ar)), times = max.order), rep(NA, n))  #garch simulations
     m <- max.order
@@ -834,39 +1130,38 @@ sim_garch <- function(model= list(), innovations, simple = TRUE){
     
     for (i in (m + 1):(n + m)) {
         h[i] = omega + sum(alpha * (abs(eps[i - (1:order.alpha)]) - 
-            gamma * (eps[i - (1:order.alpha)]))^delta) + 
-          sum(beta * h[i - (1:order.beta)])  
+                                        gamma * (eps[i - (1:order.alpha)]))^delta) + 
+            sum(beta * h[i - (1:order.beta)])  
         
         eps[i] = h[i]^deltainv * z[i]
         y[i] = mu + sum(ar * y[i - (1:order.ar)]) + sum(ma * 
-            eps[i - (1:order.ma)]) + eps[i]
+                                                            eps[i - (1:order.ma)]) + eps[i]
     }
     
-    data <- cbind(z = z[(m + 1):(n + m)], 
-                  sigma = h[(m + 1):(n + m)]^deltainv, 
-                  y = y[(m + 1):(n + m)])
+    if(simple == TRUE) {
+        data <- y[(m + 1):(n + m)] #removes burn in data
+    } else {
+        data <- tibble(z = z[(m + 1):(n + m)], 
+                       sigma = h[(m + 1):(n + m)]^deltainv, 
+                       y = y[(m + 1):(n + m)])
+    }
     
-    rownames(data) <- as.character(1:n)  # may want to change to dates
-    colnames(data) <- glue::glue("Asset:{1:ncol(data)}")
-    data <- data[-(1:m), ]   #removes burn in data
-    
-    
-    if(simple == TRUE){
-      data[,3]
-      }else data
-  
 }
 
 ```
+
 ## Demonstrating sim_garch
-Not sure if sim_garch is working correctly.
+
+Note that:
+- volatility clusters and significant autocorrelation appear in the series after it is processed through the sim_garch function. 
+- sim_garch is a deterministic function.  
 
 ```{r}
 source("code/sim_inno.R")
 load("data/garch.Rda")
-set.seed(123)
+set.seed(32156454)
 
-inno <- sgt::rsgt(n = 10000, lambda = -0.0143, p = 1.6650, q = 1.9095)
+inno <- sgt::rsgt(n = 10001, lambda = -0.0143, p = 1.6650, q = 1.9095)
 #Parameters from Statistics and Data Analysis for Financial Engineering pg.421-423
 model <- list(mu = 0.000002,        
               omega = 0.000005, #key unconditional volatility parameter
@@ -876,8 +1171,8 @@ model <- list(mu = 0.000002,
               ma = NULL,
               gamma = 0.12194,
               delta = 1.85)
-
-return <- sim_garch(model, inno)
+# Introducing Mean and Var Persistence
+return <- sim_garch(model, inno, simple = TRUE)
 
 p_load(patchwork)
 p1 <- inno %>% as_tibble() %>% ggplot(aes(x=1:length(inno), y=value)) +
@@ -894,9 +1189,9 @@ p1/p2
 
 ```
 
+# Steps 1, 2 and 3: Simulating an Asset Market
 
-# Simulating an asset market
-
+The code below uses the sim_inno and sim_garch functions to simulate 500 days of returns for a market of 20 assets. 
 
 ```{r sim market, fig.height=8, fig.width=10, warning=FALSE}
 source("code/gen_corr.R")
@@ -904,19 +1199,19 @@ source("code/sim_inno.R")
 
 set.seed(123)
 
-#toy corr matrix
-#corr <- gen_corr(N = 20, Clusters = "none", Num_Layers = 3, Num_Clusters = c(2,4,5))   
+# toy corr matrix
+# corr <- gen_corr(N = 20, Clusters = "none", Num_Layers = 3, Num_Clusters = c(2,4,5))   
 
-#Emperical Corr matrix
+# Empirical Correlation matrix
 load("data/labeled_training_data.Rda")
 set.seed(1234)
 corr <- labeled_training_data$stressed_market[[1]]
 dim <- sample(1:nrow(corr), size = 20)
 corr <- corr[dim,dim]
 
-#corr <- matrix(data = rep(0.5, 4), nrow = 2); diag(corr) <- 1
-
+# marginal distribution parameters (for SGT)
 sgt_pars <- list(sigma = 1, lambda = -0.04140381, p = 1.880649, q = 1.621578)
+
 inno <- sim_inno(corr = corr, 
          elliptal_copula = "t",
          df_ellip = 4,
@@ -926,18 +1221,10 @@ inno <- sim_inno(corr = corr,
          marginal_dist_model = sgt_pars,
          T = 500)
 
-colnames(inno) <- glue::glue("Asset_{1:ncol(inno)}") #move to sim_inno
-#inno  %>% cor() %>% corrplot::corrplot()
-
-rinno <- suppressMessages(
-  1:ncol(inno) %>% map(~rev(inno[,.])) %>% reduce(bind_cols)
-  )
-colnames(rinno) <- glue::glue("Asset_{1:ncol(inno)}")
-
 #getting empirical parameters
 load("data/coef.Rda")
-model <- 2:ncol(coef) %>% map(~mean(coef[[.]])) 
-names(model) <- colnames(coef)[-1]
+
+model <- coef %>% select_if(is.numeric) %>% map_df(mean)
 
 #Parameters from Statistics and Data Analysis for Financial Engineering pg.421-423
 model <- list(mu = 0.000002,        
@@ -951,10 +1238,7 @@ model <- list(mu = 0.000002,
 
 
 #Making Simdat tidy
-simdat <- suppressMessages(
-  1:ncol(inno) %>% map(~sim_garch(model, inno[,.x])) %>% reduce(bind_cols)
-  )
-colnames(simdat) <- glue::glue('Asset_{1:ncol(simdat)}')
+simdat <- inno %>% map_dfc(~sim_garch(model, .x))
 
 tidy_simdat <- simdat %>%  mutate(date = 1:nrow(simdat)) %>% 
   gather(key = Asset, value = Return, -date)
@@ -966,70 +1250,73 @@ tidy_simdat <- simdat %>%  mutate(date = 1:nrow(simdat)) %>%
 tidy_simdat %>%  
   arrange(date) %>% 
   group_by(Asset) %>%
-  mutate(Cum_Return = cumprod(1 + Return)) %>%
+  mutate(Cum_Return = cumprod(1 + Return)*100) %>%
   ggplot() + geom_line(aes(x=date, y=Cum_Return, color = Asset)) +
-  facet_wrap(~Asset, scales = "free_y") +
+  facet_wrap(~Asset) +
+  labs(title = "Cumulative Returns",
+       subtitle = "500 Trading Days Across 20 Assets") +
   theme_bw() +
   theme(legend.position = "none") 
 
 
 tidy_simdat %>% ggplot() +
   geom_line(aes(x=date,y=Return, color = Asset)) +
-  facet_wrap(~Asset, scales = "free_y") +
+  facet_wrap(~Asset) +
+  labs(title = "Returns",
+       subtitle = "500 Trading Days Across 20 Assets") +
   theme_bw() +
   theme(legend.position = "none")
 
 ```
 
-## Simulating an ensemble of asset markets: Prototype
+## Prototype: sim_asset_market Function
 
 ```{r, fig.height=8, fig.width=12}
 source("code/gen_corr.R")
 source("code/sim_inno.R")
-Sim.Asset.Market <- function(corr, T = 500, model = list()){    #note that length out is 499 not 500,  
-                                                                #look at garchsim to fix
-  
-                            sgt_pars <- list(mu = 0.0001715299, sigma = 1, 
-                                             lambda = -0.04140381, p = 1.880649, q = 1.621578)
-                            inno <- sim_inno(corr = corr, 
-                                     elliptal_copula = "t",
-                                     df_ellip = 4,
-                                     left_cop_param = 4,
-                                     left_cop_weight = 0,
-                                     marginal_dist = "sgt",
-                                     marginal_dist_model = sgt_pars,
-                                     T = T)
-                            
-                            #Applying sim_garch to each column in simdat
-                            simdat <- suppressMessages(
-                              1:ncol(inno) %>% map(~sim_garch(model, inno[,.x])) %>% reduce(bind_cols) )
-                              
-                            # Naming Each coloumn
-                            colnames(simdat) <- glue::glue('Asset_{1:ncol(simdat)}')
-                            
-                            #adding a date column
-                            bizdays::create.calendar(name = "weekdays", weekdays = c("saturday", "sunday"))
-                            start_date <- Sys.Date()
-                            end_date <- bizdays::offset(start_date, nrow(simdat), "weekdays")
-                            weekdays <- rmsfuns::dateconverter(start_date, end_date, "weekdays")[1:nrow(simdat)]
-                            
-                            
-                            simdat <- simdat %>% mutate(date = weekdays, .before = `Asset_1`) %>% 
-                              gather(key=Asset, value = Return, -date)
-                            
-                        return(simdat)
-}
+sim_asset_market <- function(corr, T = 500, model = list()){    #note that length out is 499 not 500,  
 
+        sgt_pars <- list(mu = 0, sigma = 1, 
+                         lambda = -0.04140381, p = 1.880649, q = 1.621578)
+        inno <- sim_inno(corr = corr, 
+                 elliptal_copula = "t",
+                 df_ellip = 4,
+                 left_cop_param = 4,
+                 left_cop_weight = 0,
+                 marginal_dist = "sgt",
+                 marginal_dist_model = sgt_pars,
+                 T = T)
+        
+        #Applying sim_garch to each column in simdat
+        simdat <- inno %>% map_dfc(~sim_garch(model, .x))
+        
+        #adding a date column
+       start_date <- Sys.Date()
+       all_days <- seq(start_date, start_date %m+% lubridate::days( ceiling( T*(1+(3/7))) ), by = 1)
+       weekdays <- all_days[!weekdays(all_days) %in% c('Saturday','Sunday')][1:T]
+        
+        #Creating final df
+        simdat <- simdat %>% 
+            mutate(date = weekdays, .before = `Asset_1`) %>% 
+            gather(key=Asset, value = Return, -date)
+        
+    return(simdat)
+}
 
 ```
 
-Now lets use the function above to run our first MC simulation.
 
-```{r}
+
+# Step 4: Simulating an Ensemble of Asset Markets
+
+Now lets use the sim_asset_market above to the first MC simulation.
+- 
+
+```{r monte carlo, fig.height=10, fig.width=12}
 #Emperical Corr matrix
 load("data/labeled_training_data.Rda")
 
-set.seed(1234)
+set.seed(2121354)
 corr <- labeled_training_data$stressed_market[[1]]
 dim <- sample(1:nrow(corr), size = 20)
 corr <- corr[dim,dim]
@@ -1045,22 +1332,28 @@ model <- list(mu = 0,
               gamma = 0.12194,
               delta = 1.85)
 
-#Is there a better way to name cols? i.e before we reduce?
-mc.data <- suppressMessages(
-1:10 %>% map(~Sim.Asset.Market(corr, T = 500, model)) %>% reduce(left_join, by = c("date","Asset"))
-)
-colnames(mc.data) <- c("date", "Asset", glue::glue("Universe_{1:(ncol(mc.data)-2)}"))
+# Simulating N markets
+N <- 50
+# How can I speed this up?
+mc_data <- 1:N %>% map(~sim_asset_market(corr, T = 500, model)) %>% 
+  reduce(left_join, by = c("date","Asset")) 
 
-#This is how I want my final output to look. 
-mc.data <- mc.data %>% gather(Universe, Return, c(-date,-Asset))
+# Setting appropriate column names
+colnames(mc_data) <- c("date", "Asset", glue::glue("Universe_{1:(ncol(mc_data)-2)}"))
 
-mc.data %>% 
+# making data tidy: This is how I want my final output to look. 
+mc_data <- mc_data %>% gather(Universe, Return, c(-date, -Asset))
+
+# Plotting reasults
+mc_data %>% 
   group_by(Asset, Universe) %>% 
   arrange(date) %>% 
   mutate(cum_ret = cumprod(1 + Return)*100) %>% 
   ggplot() +
-  geom_line(aes(x = date, y = cum_ret, color = Universe), size = 1) + 
+  geom_line(aes(x = date, y = cum_ret, color = Universe), size = 1, alpha = 0.5) + 
   facet_wrap(~Asset, scales = "free_y") + 
+  labs(title = "Ensemble of Cumulative Returns",
+       subtitle = "50 Realizations for a Market of 20 Assets") +
   theme_bw()+
   theme(legend.position = "none") 
 
