@@ -1,10 +1,10 @@
 sim_garch <- function(model= list(), innovations, simple = TRUE){
 
     #default parameters for garch model
-    default <- list(omega = 1e-06,
-                    alpha = 0.1,
+    default <- list(omega = 5e-04,
+                    alpha = 0,
                     gamma = NULL,
-                    beta = 0.8,
+                    beta = 0,
                     mu = 0,   #changed form NULL to 0
                     ar = NULL,
                     ma = NULL,
@@ -56,14 +56,11 @@ sim_garch <- function(model= list(), innovations, simple = TRUE){
     }
 
     if(simple == TRUE) {
-        data <- y = y[(m + 1):(n + m)] #removes burn in data
+        data <- y[(m + 1):(n + m)] #removes burn in data
     } else {
         data <- tibble(z = z[(m + 1):(n + m)],
                        sigma = h[(m + 1):(n + m)]^deltainv,
                        y = y[(m + 1):(n + m)])
     }
-
+    return(data)
 }
-
-innovations <- rnorm(100)
-sim_garch(model, innovations, simple = FALSE) %>% nrow()

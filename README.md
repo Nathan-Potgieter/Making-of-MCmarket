@@ -1,15 +1,13 @@
 README
 ================
 
-Simulating Asset Returns
-========================
+# Simulating Asset Returns
 
 This is the README for Nathan Potgieter’s financial econometrics
 project, in which a framework the Monte Carlo simulation of asset
 markets is developed.
 
-Aim
----
+## Aim
 
 The aim of this project is to develop a general and easy to use Monte
 Carlo simulation package that generates asset return data, with a
@@ -28,8 +26,7 @@ parameters of which can be adjusted to induce alternative risk
 characteristics. Various ARIMA(p,q) + APGARCH(q,p) structures can be
 called on to induce mean and variance persistence.
 
-Monte Carlo Framework
----------------------
+## Monte Carlo Framework
 
 The Monte Carlo simulation routine involves the following steps:
 
@@ -66,11 +63,9 @@ p_load(tidyverse, copula, fGarch, lubridate, forecast, bizdays, sgt, glue)
 p_load(tbl2xts)
 ```
 
-The Set up
-==========
+# The Set up
 
-Generating Ad Hoc Covarience matrix
------------------------------------
+## Generating Ad Hoc Covarience matrix
 
 In this section I developed a simple function that allows the user to
 easily generate a correlation matrix with a desired cluster structure.
@@ -189,8 +184,7 @@ gen_corr(N = 60, Clusters = "overlapping", Num_Layers = 4, Num_Clusters = c(10,5
 
 <img src="README_files/figure-gfm/using gen_corr-1.png" width="80%" height="80%" />
 
-Generating a Dataset of Emperical Correlation Matrix’s
-------------------------------------------------------
+## Generating a Dataset of Emperical Correlation Matrix’s
 
 I now use S&P500 data since 1/01/2000 to sample correlation matrices
 that will be used to train CorrGAN and can be used as inputs in the
@@ -438,11 +432,9 @@ save(training_data, file = "data/training_data.Rda")
 
 <img src="README_files/figure-gfm/showing some training data-1.png" width="80%" height="80%" /><img src="README_files/figure-gfm/showing some training data-2.png" width="80%" height="80%" /><img src="README_files/figure-gfm/showing some training data-3.png" width="80%" height="80%" />
 
-Step 1: Draw a series of random uniformly distributed numbers across a set of variables with a specified dependence structure.
-==============================================================================================================================
+# Step 1: Draw a series of random uniformly distributed numbers across a set of variables with a specified dependence structure.
 
-Generating Random Draws with Numerous Copula Functions
-------------------------------------------------------
+## Generating Random Draws with Numerous Copula Functions
 
 ### Elliptal copulas
 
@@ -600,8 +592,7 @@ bind_rows(rCopula(5000, copula = claycop) %>% as_tibble() %>% mutate(copula = "c
 #rCopula(1000, galcop) %>% plot()
 ```
 
-Generating Hybrid Copulas
--------------------------
+## Generating Hybrid Copulas
 
 Tawn’s (1988) Theorem: Shows that a copula is a convex set and every
 convex combination of existing copula functions is again a copula.
@@ -628,8 +619,7 @@ of the same dimension.
 See “Extreme Dependence Structures and the Cross-Section of Expected
 Stock Returns” page 8 & 9.
 
-Some 2D Hybrid Copulas.
------------------------
+## Some 2D Hybrid Copulas.
 
 ![Plot 1.](plots/plot_1.png) ![Plot 2.](plots/plot_2.png) ![Plot
 3.](plots/plot_3.png) ![Plot 4.](plots/plot_4.png)
@@ -637,11 +627,9 @@ Some 2D Hybrid Copulas.
 However, remember that each variable is currently uniformly distributed.
 <img src="README_files/figure-gfm/unnamed-chunk-1-1.png" width="80%" height="80%" />
 
-Step 2: Converting the uniformly distributed variables to something that better resembles the distribution of asset returns.
-============================================================================================================================
+# Step 2: Converting the uniformly distributed variables to something that better resembles the distribution of asset returns.
 
-Looking at options for marginal distributions
----------------------------------------------
+## Looking at options for marginal distributions
 
 Due to convenience, it has become standard to use the normal, or
 student-t distribution when simulating asset returns.
@@ -703,8 +691,7 @@ medium_vol <-
   pull(symbol)
 ```
 
-Plotting low, medium and high risk returns.
-===========================================
+# Plotting low, medium and high risk returns.
 
     ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
 
@@ -766,8 +753,7 @@ load(file = "data/sgt_medium_vol.Rda")
 
 <img src="README_files/figure-gfm/plotting marginal distributions-1.png" width="80%" height="80%" /><img src="README_files/figure-gfm/plotting marginal distributions-2.png" width="80%" height="80%" /><img src="README_files/figure-gfm/plotting marginal distributions-3.png" width="80%" height="80%" />
 
-Simulating Innovations
-----------------------
+## Simulating Innovations
 
 This section introduces the sim\_inno function, which is designed to
 carry out the first two steps of this Monte Carlo framework.
@@ -952,8 +938,7 @@ data_norm %>% gather(key, value, -V1) %>%
 
 <img src="README_files/figure-gfm/sim_inno test-3.png" width="80%" height="80%" style="display: block; margin: auto auto auto 0;" />
 
-Step 3: Introducing Volitility Persistence
-==========================================
+# Step 3: Introducing Volitility Persistence
 
 The simulated innovations do not yet demonstrate the mean and/or
 volatility persistence observed in real asset return series, hence why I
@@ -981,8 +966,7 @@ In this step I introduce autocorrelation and volatility using an AR(p,q)
     source:
     <https://towardsdatascience.com/garch-processes-monte-carlo-simulations-for-analytical-forecast-27edf77b2787>
 
-sim\_garch
-----------
+## sim\_garch
 
 This function introduces mean and variance persistence by plugging in
 the numbers generated by the sim\_inno function as innovations in the
@@ -1058,8 +1042,7 @@ sim_garch <- function(model= list(), innovations, simple = TRUE){
 }
 ```
 
-Demonstrating sim\_garch
-------------------------
+## Demonstrating sim\_garch
 
 Note that: - volatility clusters and significant autocorrelation appear
 in the series after it is processed through the sim\_garch function. -
@@ -1103,8 +1086,7 @@ p1/p2
 
 <img src="README_files/figure-gfm/unnamed-chunk-4-2.png" width="80%" height="80%" />
 
-Steps 1, 2 and 3: Simulating an Asset Market
-============================================
+# Steps 1, 2 and 3: Simulating an Asset Market
 
 The code below uses the sim\_inno and sim\_garch functions to simulate
 500 days of returns for a market of 20 assets.
@@ -1189,8 +1171,7 @@ tidy_simdat %>% ggplot() +
 
 <img src="README_files/figure-gfm/sim market-2.png" width="80%" height="80%" />
 
-Prototype: sim\_asset\_market Function
---------------------------------------
+## Prototype: sim\_asset\_market Function
 
 ``` r
 source("code/gen_corr.R")
@@ -1225,11 +1206,9 @@ sim_asset_market <- function(corr, T = 500, model = list()){    #note that lengt
 }
 ```
 
-Step 4: Simulating an Ensemble of Asset Markets
-===============================================
+# Step 4: Simulating an Ensemble of Asset Markets
 
-Now lets use the sim\_asset\_market above to the first MC simulation.
----------------------------------------------------------------------
+## Now lets use the sim\_asset\_market above to the first MC simulation.
 
 ``` r
 #Emperical Corr matrix
@@ -1282,3 +1261,11 @@ mc_data %>%
 ```
 
 <img src="README_files/figure-gfm/monte carlo-2.png" width="80%" height="80%" />
+
+## mc\_market
+
+``` r
+mc_market <- function(){
+  
+}
+```
