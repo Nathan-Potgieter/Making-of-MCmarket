@@ -1,8 +1,9 @@
 #' @title sim_asset_market
-#' @description This function produces a series of returns for an asset market with the given correlation matrix. The user can adjust the markets left tail dependency as well as the markets distribution and the univariate distributions of the returns.
+#' @description This function produces an ensemble of market returns for an asset market with the given correlation matrix. The user can adjust the markets left tail dependency as well as the markets distribution and the univariate distributions of the returns.
 #' @note  It is suggested that the marginal distributions be set to mean zero and standard deviation one. Those attributes are better set in the ts_model argument.
 #' @param corr a correlation matrix that the simulated date will adhere to. Note that the number of variables simulated is equal to the number of columns in the correlation matrix.
-#' @param k a positive integer indicating the number of time periods to simulate. Note that the number of periods generated is actually equal to k + 5 as these extra observations are needed when applying time series properties to the data.
+#' @param N a positive integer indicating the number of markets to simulate.
+#' @param k a positive integer indicating the number of time periods to simulate per market. Note that the number of periods generated is actually equal to k + 5 as these extra observations are needed when applying time series properties to the data.
 #' @param mv_dist a string specifying the multivariate distribution. Can be one of c("norm", "t") referring to the multivariate normal and t distributions respectively. Default is 3.
 #' @param mv_df degrees of freedom of the multivariate distribution, required when mv_dist = "t".
 #' @param left_cop_weight a positive value between zero and one indicating the weight applied to the Clayton copula when creating the multivariate distribution. Note that a value between zero and one essentially generates a hybrid distribution between the chosen mv_dist and the Clayton copula. Therefore, the greater the left_cop_weight the less the data will reflect the correlation structure. Default is set to 0.
@@ -57,46 +58,49 @@
 #'
 #' }
 #' @export
-
-sim_asset_market <- function(corr,
-                             k = 252,
-                             mv_dist = "t",
-                             mv_df = 3,
-                             left_cop_weight = 0,
-                             left_cop_param = 4,
-                             marginal_dist = "norm",
-                             marginal_dist_model = NULL,         # may want to change to a list
-                             ts_model = list()
-) {
-    #Simulating innovations
-    inno <- sim_inno(corr = corr,
-                     mv_dist = mv_dist,
-                     mv_df = mv_df,
-                     left_cop_param = left_cop_param,
-                     left_cop_weight = left_cop_weight,
-                     marginal_dist = marginal_dist,
-                     marginal_dist_model = marginal_dist_model,
-                     k = k)
-
-    #creating a date vector
-    start_date <- Sys.Date()
-    dates <- rmsfuns::dateconverter(StartDate = start_date,
-                                    EndDate = start_date %m+% lubridate::days(k-1),
-                                    Transform = "alldays")
-
-    if (is.null(ts_model)) {
-        return(
-            inno %>% mutate(date = dates, .before = `Asset_1`) %>%
-                gather(key = Asset, value = Return, -date)
-        )
+mc_market <- function(corr,
+                      N = 100,
+                      k = 252,
+                      mv_dist = "t",
+                      mv_df = 3,
+                      left_cop_weight = 0,
+                      left_cop_param = 4,
+                      marginal_dist = "norm",
+                      marginal_dist_model = NULL,         # may want to change to a list
+                      ts_model = list(),
+                      parallel = FALSE) {
+    if (parallel == FALSE) {
+        mc_data <- 1:N %>%
+            map(~sim_asset_market(corr = corr,
+                                  k = k,
+                                  mv_dist = mv_dist,
+                                  mv_df = mv_df,
+                                  left_cop_weight = left_cop_weight,
+                                  left_cop_param = left_cop_param,
+                                  marginal_dist = marginal_dist,
+                                  marginal_dist_model = marginal_dist_model,
+                                  ts_model = ts_model)) %>% # Must add additional arguments
+            reduce(left_join, by = c("date","Asset"))
     } else
+        if (parallel == TRUE) {
+            mc_data <- 1:N %>%
+                future_map(~sim_asset_market(corr = corr,
+                                             k = k,
+                                             mv_dist = mv_dist,
+                                             mv_df = mv_df,
+                                             left_cop_weight = left_cop_weight,
+                                             left_cop_param = left_cop_param,
+                                             marginal_dist = marginal_dist,
+                                             marginal_dist_model = marginal_dist_model,
+                                             ts_model = ts_model)) %>%   # Must add additional arguments
+                reduce(left_join, by = c("date","Asset"))
+        }
+    colnames(mc_data) <- c("date", "Asset", glue("Universe_{1:(ncol(mc_data)-2)}"))
 
-    #Applying sim_garch to each column in simdat
-
-    simdat <- inno %>% map_dfc(~sim_garch(innovations = .x, model =  ts_model))
-
-    #Creating final df
-    simdat %>%
-        mutate(date = dates, .before = `Asset_1`) %>%
-        gather(key = Asset, value = Return, -date)
+    mc_data %>% gather(Universe, Return, c(-date, -Asset))
 }
+set.seed(777)
+mc_market(diag(20))
+mc_market(diag(20), left_cop_weight = 0.1)
+mc_market(diag(20), left_cop_weight = 0.3)
+mc_market(diag(20), left_cop_weight = 0.4)

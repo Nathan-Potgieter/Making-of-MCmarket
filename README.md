@@ -4,7 +4,7 @@ README
 # Simulating Asset Returns
 
 This is the README for Nathan Potgieter’s financial econometrics
-project, in which a framework the Monte Carlo simulation of asset
+project, in which a framework for the Monte Carlo simulation of asset
 markets is developed.
 
 ## Aim
@@ -13,7 +13,7 @@ The aim of this project is to develop a general and easy to use Monte
 Carlo simulation package that generates asset return data, with a
 prespecified correlation structure and dynamic dependencies. Ideally the
 user will be able to adjust a “leverage” parameter, which will determine
-the markets left-tail dependency, and in turn effect likelihood of
+the markets left-tail dependency, and in turn effect the likelihood of
 entering a “crisis period” characterized by extreme joint drawdowns.
 
 Elliptical copulas are used to induce the correlation in the simulated
@@ -59,7 +59,7 @@ markets.
 
 ``` r
 library(pacman)
-p_load(tidyverse, copula, fGarch, lubridate, forecast, bizdays, sgt, glue)
+p_load(tidyverse, copula, fGarch, lubridate, forecast, sgt, glue) #used in functions
 p_load(tbl2xts)
 ```
 
@@ -96,8 +96,10 @@ function is located in the gen\_corr.R code file.
 ``` r
 #Co-Varience matrix generatimg function
 
-gen_corr <- 
-  function(N = 50, Clusters = c("none", "non-overlapping", "overlapping") , Num_Clusters = NULL, Num_Layers = NULL){
+gen_corr <- function (N = 50, 
+                      Clusters = c("none", "non-overlapping", "overlapping"),
+                      Num_Clusters = NULL, 
+                      Num_Layers = NULL) {
     
 Grps <- Num_Clusters
 #set.seed(123)
@@ -187,8 +189,9 @@ gen_corr(N = 60, Clusters = "overlapping", Num_Layers = 4, Num_Clusters = c(10,5
 ## Generating a Dataset of Emperical Correlation Matrix’s
 
 I now use S&P500 data since 1/01/2000 to sample correlation matrices
-that will be used to train CorrGAN and can be used as inputs in the
-simulation.
+that can be used as inputs in the Monte Carlo procedure. These matrixes
+will be made available as part of the mc\_market package and will be
+used to train CorrGAN.
 
 #### Getting SNP 500 data since 2000
 
@@ -761,17 +764,17 @@ carry out the first two steps of this Monte Carlo framework.
 ### sim\_inno
 
 The function below generates randomly distributed numbers from a hybrid
-t and clayton copula. Need to think about how to calibrate df and
+t and/or clayton copula. Need to think about how to calibrate df and
 claycop parameters.
 
 Arguments
 
--   Corr this is a correlation matrix uses as the parameter for the
+-   Corr this is a correlation matrix used as the parameter for the
     elliptical copula
 -   elliptal\_copula family name of elliptal copula. Default is to use
     “t”, but “norm” is also accepted
 -   df\_ellip a positive integer specifying the degrees of freedom for
-    the student t elliptic copula. Only required when using
+    the student t elliptical copula. Only required when using
     elliptal\_copula = “t”.
 -   left\_cop\_param a positive integer specifying the parameter of the
     **Clayton** copula.
@@ -783,75 +786,98 @@ Arguments
     default generating uniformly distributed marginals.
 -   df\_marginal\_dist a positive integer specifying the degrees of
     freedom parameter of the “t” distributed marginals.
+-   marginal\_dist\_model a list containing the parameters of the
+    marginal distribution.
 
 ``` r
-sim_inno <- function(corr, elliptal_copula = c("norm", "t"), 
-                  df_ellip = NULL, left_cop_param = 5,
-                  left_cop_weight = 0, T = 251, 
-                  marginal_dist = NULL, marginal_dist_model = NULL, sd_md = NULL) {
-  
-  N <- nrow(corr)
-  T <- T + 5
-  Cor <- P2p(corr)
+sim_inno <- function(corr,
+                     k = 252,
+                     mv_dist = "t",
+                     mv_df = 3,
+                     left_cop_param = 5,
+                     left_cop_weight = 0,
+                     marginal_dist = "norm",
+                     marginal_dist_model = NULL) {
 
-# specifying  Copula's
-# elliptical
-  if(elliptal_copula == "t") {
-    # warning
-    if(is.null(df_ellip))stop('Please supply a valid degrees of freedom parameter when using elliptal_copula = "t". ')
-    
-    Ecop <- ellipCopula(family = elliptal_copula, dispstr = "un", df = df_ellip,
-                        param = Cor, dim = N)
-    
-    }else
-      if(elliptal_copula == "norm"){
-        
-        Ecop <- ellipCopula(family = "norm", dispstr = "un", param = Cor, dim = N)
-      
-    }else
-      stop("Please supply a valid argument for elliptal_copula")
+    N <- nrow(corr)
+    k <- k + 5   # extra room for sim_garch to use later
+    Cor <- P2p(corr)
 
-# Left-cop (Archemedian copula)
-  Acop <- archmCopula(family = "clayton", param = left_cop_param, dim = N)
-  
-  
-#generating random draws from copula's, uniformly distributed data
-  if(left_cop_weight<0|left_cop_weight>1)stop("Please provide a valid left_cop_weight between 0 and 1")   
-  
-  if(left_cop_weight==0) {
-    data <- rCopula(T, Ecop)
- } else
-   if(left_cop_weight==1) {
-     data <- rCopula(T, Acop)
- } else
-   data <- left_cop_weight*rCopula(T, Acop) + (1-left_cop_weight)*rCopula(T, Ecop)
-   
-  #naming and converting data to tibble
-  colnames(data) <- glue::glue("Asset_{1:ncol(data)}")
-  data <- as_tibble(data)
+    # Specifying  Copulas
+    # elliptical
+    if(!(mv_dist %in% c("norm", "t"))) stop("Please supply a valid argument for mv_dist")
+    else
+        if (mv_dist == "t") {
+            if (is.null(mv_df)) stop('Please supply a valid degrees of freedom parameter when using mv_dist = "t".')
+            Ecop <- ellipCopula(family = "t",
+                                dispstr = "un",
+                                df = mv_df,
+                                param = Cor,
+                                dim = N)
+    } else
+        if (mv_dist == "norm") {
+            Ecop <- ellipCopula(family = "normal", dispstr = "un", param = Cor, dim = N)
+        }
+
+    # Left-cop (Archemedian copula)
+    if (left_cop_weight < 0|left_cop_weight > 1) stop("Please provide a valid left_cop_weight between 0 and 1")
     
-#Converting Uniform marginal distributions to norm or sgt. 
- if(marginal_dist=="norm"){
-            
-             if(is.null(sd_md))stop('Please supply a valid sd_md parameter when using marginal_dist="norm".')
-             data <- data %>% map_df(~qnorm(.x, sd_md))
-            
-            }else
-              if(marginal_dist=="sgt"){
-                
-                if(is.null(marginal_dist_model))stop('Please supply a valid marginal_dist_model when using marginal_dist="sgt".')
-                   mu <- marginal_dist_model$mu
-                   mu <- marginal_dist_model$sigma
-                   lambda <- marginal_dist_model$lambda
-                   p <- marginal_dist_model$p
-                   q <- marginal_dist_model$q
-                  
-                   data <- data %>% map_df(~qsgt(.x, mu =  mu, sigma = sigma, lambda = lambda, p = p, q = q))
-                  
-              }
-              
-              return(data)
-            
+    if (left_cop_weight != 0) {
+        Acop <- archmCopula(family = "clayton", param = left_cop_param, dim = N)
+    }
+
+    #generating random (uniformly distributed) draws from hybrid copula's
+    if (left_cop_weight == 0) {
+        data <- rCopula(k, Ecop)
+    } else
+        if(left_cop_weight == 1) {
+            data <- rCopula(k, Acop)
+        } else
+            data <- left_cop_weight*rCopula(k, Acop) + (1-left_cop_weight)*rCopula(k, Ecop)
+
+    #naming and converting data to tibble
+    colnames(data) <- glue::glue("Asset_{1:ncol(data)}")
+    data <- as_tibble(data)
+
+    if (marginal_dist == "unif") return(data)  # How to make function stop here?
+
+    #Converting Uniform marginal distributions to norm, t or sgt.
+    if (!(marginal_dist %in% c("norm", "t", "sgt", "unif"))) stop ("Please supply a valid marginal_dist argument")
+    if (marginal_dist == "norm") {
+        if (is.null(marginal_dist_model)) {
+            marginal_dist_model <- list(mu=0, sigma = 1)     #Should defaults move to the top?
+        }
+        data <- data %>% map_df(~qnorm(.x, 
+                                       mean = marginal_dist_model$mu,
+                                       sd = marginal_dist_model$sigma))
+        return(data)
+    } else
+        if (marginal_dist == "t") {
+            if (is.null(marginal_dist_model)) {
+                marginal_dist_model <- list(mu=0, df = 5)
+            }
+            data <- data %>%
+                map_df(~qt(.x, ncp = marginal_dist_model$mu, df = mv_df))
+            return(data)
+        } else
+            if (marginal_dist == "sgt") {
+                if (is.null(marginal_dist_model))
+                    stop ('Please supply a valid marginal_dist_model when using marginal_dist="sgt".')
+                else
+                    if (is.null(marginal_dist_model$mu)) {marginal_dist_model$mu <- 0}
+                    if (is.null(marginal_dist_model$sigma)) {marginal_dist_model$sigma <- 1}  # Do I need an else?? Seems like including it will not work
+                    if (is.null(marginal_dist_model$lambda)|
+                       is.null(marginal_dist_model$p)|
+                       is.null(marginal_dist_model$q)) stop('Please supply valid arguments for lambda, p and q when using marginal_dist = "sgt".')
+                        data <- data %>%
+                            map_df(~qsgt(.x, mu =  marginal_dist_model$mu,
+                                         sigma = marginal_dist_model$sigma,
+                                         lambda = marginal_dist_model$lambda,
+                                         p = marginal_dist_model$p,
+                                         q = marginal_dist_model$q,
+                                         mean.cent = TRUE))
+                        return(data)
+                }
 }
 ```
 
@@ -870,26 +896,26 @@ Corr <- gen_corr(N = 50, Clusters = "overlapping", Num_Layers = 3, Num_Clusters 
 # ----------------------------------------
 sgt_pars <- as.list(sgt_low_vol$estimate)
 data_sgt <- sim_inno(corr = Corr, 
-                 elliptal_copula = "t",
-                 df_ellip = 4,
+                 mv_dist = "t",
+                 mv_df = 4,
                  left_cop_param = 10,
                  left_cop_weight = 0,
                  marginal_dist = "sgt",
                  marginal_dist_model = sgt_pars,
-                 T = 500)
+                 k = 500)
 colnames(data_sgt) <- glue::glue("V{1:ncol(data_sgt)}")
 
 # ----------------------------------------
 # Simulating data with marginal_dist="norm"
 # ----------------------------------------
 data_norm <- sim_inno(corr = Corr, 
-                 elliptal_copula = "t",
-                 df_ellip = 4,
+                 mv_dist = "t",
+                 mv_df = 4,
                  left_cop_param = 10,
                  left_cop_weight = 0,
                  marginal_dist = "norm",
-                 sd_md = 0.02311859,
-                 T = 500)
+                 marginal_dist_model = list(mu = 0, sigma = 0.02311859),
+                 k = 500)
 colnames(data_norm) <- glue::glue("V{1:ncol(data_norm)}")
 
 # ------------------------
@@ -970,7 +996,7 @@ In this step I introduce autocorrelation and volatility using an AR(p,q)
 
 This function introduces mean and variance persistence by plugging in
 the numbers generated by the sim\_inno function as innovations in the
-GARCH process. Note that most of code was borrowed from fGarch’s
+GARCH process. Note that most of the code was re-purposed from fGarch’s
 garchspec and garchsim functions.
 
 ``` r
@@ -1038,7 +1064,6 @@ sim_garch <- function(model= list(), innovations, simple = TRUE){
                        sigma = h[(m + 1):(n + m)]^deltainv, 
                        y = y[(m + 1):(n + m)])
     }
-    
 }
 ```
 
@@ -1108,16 +1133,16 @@ dim <- sample(1:nrow(corr), size = 20)
 corr <- corr[dim,dim]
 
 # marginal distribution parameters (for SGT)
-sgt_pars <- list(sigma = 1, lambda = -0.04140381, p = 1.880649, q = 1.621578)
+sgt_pars <- list(lambda = -0.04140381, p = 1.880649, q = 1.621578)
 
 inno <- sim_inno(corr = corr, 
-         elliptal_copula = "t",
-         df_ellip = 4,
+         mv_dist = "t",
+         mv_df = 4,
          left_cop_param = 2,
          left_cop_weight = 0.01,
          marginal_dist = "sgt",
          marginal_dist_model = sgt_pars,
-         T = 500)
+         k = 500)
 
 #getting empirical parameters
 load("data/coef.Rda")
@@ -1176,75 +1201,141 @@ tidy_simdat %>% ggplot() +
 ``` r
 source("code/gen_corr.R")
 source("code/sim_inno.R")
-sim_asset_market <- function(corr, T = 500, model = list()){    #note that length out is 499 not 500,  
-
-        sgt_pars <- list(mu = 0, sigma = 1, 
-                         lambda = -0.04140381, p = 1.880649, q = 1.621578)
+sim_asset_market <- function(corr, 
+                             k = 500,
+                             mv_dist = "t", 
+                             mv_df = 3,
+                             left_cop_weight = 0,
+                             left_cop_param = 4,
+                             marginal_dist = "norm", 
+                             marginal_dist_model = NULL,         # may want to change to a list
+                             ts_model = NULL 
+                             ) {    
+        #Simulating innovations
         inno <- sim_inno(corr = corr, 
-                 elliptal_copula = "t",
-                 df_ellip = 4,
-                 left_cop_param = 4,
-                 left_cop_weight = 0,
-                 marginal_dist = "sgt",
+                 elliptal_copula = mv_dist,
+                 df_ellip = mv_df,
+                 left_cop_param = left_cop_param,
+                 left_cop_weight = left_cop_weight,
+                 marginal_dist = marginal_dist,
                  marginal_dist_model = sgt_pars,
-                 T = T)
+                 k = k) 
         
         #Applying sim_garch to each column in simdat
-        simdat <- inno %>% map_dfc(~sim_garch(model, .x))
+        simdat <- inno %>% map_dfc(~sim_garch(ts_model, .x))
         
         #adding a date column
-       start_date <- Sys.Date()
-       all_days <- seq(start_date, start_date %m+% lubridate::days( ceiling( T*(1+(3/7))) ), by = 1)
-       weekdays <- all_days[!weekdays(all_days) %in% c('Saturday','Sunday')][1:T]
+        start_date <- Sys.Date()
+        # CHANGE LATER
+        dates <- rmsfuns::dateconverter(StartDate = start_date, 
+                                        EndDate = start_date %m+% lubridate::days(k),
+                                        Transform = "alldays")
         
         #Creating final df
-        simdat <- simdat %>% 
-            mutate(date = weekdays, .before = `Asset_1`) %>% 
-            gather(key=Asset, value = Return, -date)
-        
-    return(simdat)
+        simdat %>% 
+          mutate(date = dates, .before = `Asset_1`) %>% 
+          gather(key=Asset, value = Return, -date)
 }
 ```
 
 # Step 4: Simulating an Ensemble of Asset Markets
 
-## Now lets use the sim\_asset\_market above to the first MC simulation.
+The mc\_market function performs the montecarlo simulation of asset
+markets.
+
+## mc\_market
+
+Arguments: - corr a correlation matrix. - N Positive integer indicating
+the number of markets to simulate. - k Positive integer indicating the
+number of time periods per market. - mv\_dist a string specifying the
+multivariate distribution. Can be one of c(“norm”, “t”) refering to the
+multivariate normal and t distributions respectively. - mv\_df degrees
+of freedom of the multivariate distribution, required when mv\_dist =
+“t”. - left\_cop\_weight a positive value between 0 and 1, indicating
+the weight attributed to the Clayton copula, which exhibits increased
+left-tail dependencies. Note that the higher the weight the less the
+data will adherer to the input correlation matrix. Default is 0. -
+left\_cop\_param the parameter of the Clayton copula. Default is 4. -
+marginal\_dist a string specifying the univariate distribution of each
+assets innovations. Can be one of c(“norm”, “t”, “sgt”) referring to the
+normal, student-t and skewed-generalized-t distributions respectively.
+Default is “norm”. - marginal\_dist\_model a list containing relevant
+parameters for the chosen marginal\_dist, note that the values are
+normalized to zero mean and standard deviation of 1, since the ts\_model
+argument is better suited to specify the typical daily mean and
+volatility. marginal\_dist = “norm” accepts a mean and standard
+deviation list(mu, sigma), default is 0 and 1 respectively.
+marginal\_dist = “t” accepts the non-centrality and degrees of freedom
+argument default values are list(mu = 0, df = 5). marginal\_dist = “sgt”
+accepts the mean, sd, lambda, p and q parameters list(mu, sigma, lambda,
+p, q), the defaults for mu and sigma are 0 and 1 respectively, but
+lambda, p and q must be set by the user. - ts\_model a list containing
+various ARIMA + GARCH, AP-GARCH, GJR-GARCH, ect… parameters allowing
+once to specify the time series properties of the simulated returns.
+Note that parameter combinations resulting in non-stationary of the mean
+or variance will produce NAN’s. The default values are set as list(omega
+= 5e-04, alpha = 0, gamma = NULL, beta = 0, mu = 0, ar = NULL, ma =
+NULL, delta = 2). Note that omega is a key input indicating the constant
+coefficient of the variance equation.
+
+… additional arguments passed onto sim\_asset\_market
 
 ``` r
-#Emperical Corr matrix
-load("data/labeled_training_data.Rda")
-
-set.seed(2121354)
-corr <- labeled_training_data$stressed_market[[1]]
-dim <- sample(1:nrow(corr), size = 20)
-corr <- corr[dim,dim]
-ggcorrplot::ggcorrplot(corr, hc.order = TRUE)
+source("code/gen_corr.R")
+source("code/sim_inno.R")
+source("code/sim_asset_market.R")
+library(furrr)
 ```
 
-<img src="README_files/figure-gfm/monte carlo-1.png" width="80%" height="80%" />
+    ## Loading required package: future
 
 ``` r
-#Parameters from Statistics and Data Analysis for Financial Engineering pg.421-423
-model <- list(mu = 0,        
-              omega = 0.0000025, #key unconditional volatility parameter
-              alpha = 0.098839, 
-              beta = 0.899506, 
-              ar = 0.063666,
-              ma = NULL,
-              gamma = 0.12194,
-              delta = 1.85)
+mc_market <- function(corr, 
+                      N = 100, 
+                      k = 252, 
+                      mv_dist = "t",
+                      mv_df = 3,
+                      left_cop_weight = 0,
+                      left_cop_param = 4,
+                      marginal_dist = "norm",
+                      marginal_dist_model = NULL,         # may want to change to a list
+                      ts_model = list(),
+                      parallel = FALSE) {
+  if (parallel == FALSE) {
+    mc_data <- 1:N %>% 
+      map(~sim_asset_market(corr = corr, 
+                            k = k,
+                            mv_dist = mv_dist,
+                            mv_df = mv_df,
+                            left_cop_weight = left_cop_weight,
+                            left_cop_param = left_cop_param,
+                            marginal_dist = marginal_dist,
+                            marginal_dist_model = marginal_dist_model,
+                            ts_model = ts_model)) %>% # Must add additional arguments
+      reduce(left_join, by = c("date","Asset"))
+} else
+  if (parallel == TRUE) {
+    mc_data <- 1:N %>% 
+      future_map(~sim_asset_market(corr = corr, 
+                                   k = k,
+                                   mv_dist = mv_dist, 
+                                   mv_df = mv_df,
+                                   left_cop_weight = left_cop_weight,
+                                   left_cop_param = left_cop_param,
+                                   marginal_dist = marginal_dist, 
+                                   marginal_dist_model = marginal_dist_model, 
+                                   ts_model = ts_model)) %>%   # Must add additional arguments
+      reduce(left_join, by = c("date","Asset"))
+  }
+  colnames(mc_data) <- c("date", "Asset", glue("Universe_{1:(ncol(mc_data)-2)}"))
+  
+  mc_data %>% gather(Universe, Return, c(-date, -Asset))
+}
+```
 
-# Simulating N markets
-N <- 50
-# How can I speed this up?
-mc_data <- 1:N %>% map(~sim_asset_market(corr, T = 500, model)) %>% 
-  reduce(left_join, by = c("date","Asset")) 
-
-# Setting appropriate column names
-colnames(mc_data) <- c("date", "Asset", glue::glue("Universe_{1:(ncol(mc_data)-2)}"))
-
-# making data tidy: This is how I want my final output to look. 
-mc_data <- mc_data %>% gather(Universe, Return, c(-date, -Asset))
+``` r
+set.seed(521554)
+mc_data <- mc_market(corr, N = 5, k = 500, marginal_dist = "t")
 
 # Plotting reasults
 mc_data %>% 
@@ -1260,12 +1351,4 @@ mc_data %>%
   theme(legend.position = "none") 
 ```
 
-<img src="README_files/figure-gfm/monte carlo-2.png" width="80%" height="80%" />
-
-## mc\_market
-
-``` r
-mc_market <- function(){
-  
-}
-```
+<img src="README_files/figure-gfm/unnamed-chunk-6-1.png" width="80%" height="80%" />

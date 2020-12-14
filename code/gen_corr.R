@@ -1,7 +1,47 @@
-#Co-Varience matrix generatimg function
+#' @title gen_corr
+#' @description This function generates ad hoc correlation matrices with a set number of clusters and up to 4 layers.
+#' @param N The number of variables, generates an N by N correlation matrix.
+#' @param Clusters a character string specifying the type of cluster structure. Available options are "none", for a correlation matrix with no clusters, "non-overlapping" for a correlation matrix with one layer of clusters, and "overlapping" for a correlation matrix with up to 4 layers and a set number of clusters per layer.
+#' @param Num_Clusters if Clusters = "non-overlapping" or Clusters = "none" then Num_Clusters is an integer value specifying the number of clusters. If Clusters = "overlapping" then Num_Clusters must be a vector of length equal to Num_Layers specifying the number of clusters per layer.
+#' @param Num_Layers an positive integer value between 1 and 4, specifying the number of cluster layers. Only needed if using "overlapping" clusters.
+#' @return a N by N correlation matrix.
+#'
+#' @importFrom xts as.xts timeBased
+#'
+#' @import propagate
+#' @import stats
+#'
+#' @importFrom rlang :=
+#' @importFrom rlang := enquo quo_get_expr
+#' @examples
+#'
+#' \dontrun{
+#' library(propagate) ??????????????????????????????????????????????????????????
+#' library(ggcorrplot)
+#'
+#' ### This generates a 50 by 50 correlation matrix with no clusters.
+#' gen_corr(N = 50, Clusters = "none) %>%
+#'          ggcorrplot::ggcorrplot(title = "Overlapping Clusters")
+#'
+#' ### This generates a 50 by 50 correlation matrix with 5 non-overlapping clusters.
+#' gen_corr(N = 50, Clusters = "non-overlapping) %>%
+#'          ggcorrplot::ggcorrplot(title = "Overlapping Clusters")
+#'
+#' ### This generates a 60 by 60 correlation matrix consisting
+#' ### of 4 layers with 10, 5, 3 and 2 clusters respectively.
+#' gen_corr(N = 60,
+#'          Clusters = "overlapping",
+#'          Num_Layers = 4,
+#'          Num_Clusters = c(10,5,3,2)) %>%
+#'                   ggcorrplot::ggcorrplot(title = "Overlapping Clusters")
+#'
+#' }
+#' @export
 
-gen_corr <-
-    function(N = 50, Clusters = c("none", "non-overlapping", "overlapping") , Num_Clusters = NULL, Num_Layers = NULL){
+gen_corr <- function(N = 50,
+                     Clusters = c("none", "non-overlapping", "overlapping"),
+                     Num_Clusters = NULL,
+                     Num_Layers = NULL) {
 
         Grps <- Num_Clusters
         #set.seed(123)
@@ -10,7 +50,7 @@ gen_corr <-
             # Unclustered covariance matrix
             Sigma <- diag(N)
             for (i in 1:N) for (j in 1:N) Sigma[i,j] <- 0.7^abs(i-j)
-            Sigma <- propagate::cor2cov(Sigma, runif(N, 1, 5))
+            Sigma <- propagate::cor2cov(Sigma, runif(N, 1, 5))  #Why is this needed???
             corr <- cov2cor(Sigma)
         } else
 
@@ -77,4 +117,4 @@ gen_corr <-
 
         return(corr)
 
-    }
+}
