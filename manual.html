@@ -11,16 +11,16 @@
 <meta name="viewport" content="width=device-width">
 <meta property="dc:type" content="Text">
 <meta property="dc:language" content="en">
-<meta property="dc:title og:title" content="A Capitalized Title: Something about a Package foo">
+<meta property="dc:title og:title" content="MCmarkete: An R package for the Monte Carlo Simulation of Financial Markets">
 
 <meta property="og:image" content="https://www.jstatsoft.org/public/site/images/jstatsoft/jsslogo.jpg">
 <link rel="icon" href="https://www.jstatsoft.org/public/journals/1/journalFavicon_en_US.gif">
-<meta name="description" property="dc:description og:description schema:description" content="A Capitalized Title: Something about a Package foo">
+<meta name="description" property="dc:description og:description schema:description" content="MCmarkete: An R package for the Monte Carlo Simulation of Financial Markets">
 
 
-<meta name="keywords" property="dc:subject" content="keywords, not capitalized, Java">
+<meta name="keywords" property="dc:subject" content="monte carlo, copula, garch">
 
-<title>A Capitalized Title: Something about a Package foo</title>
+<title>MCmarkete: An R package for the Monte Carlo Simulation of Financial Markets</title>
 
 <script>
 window.PagedConfig = {
@@ -137,13 +137,13 @@ window.PagedConfig = {
 <article>
 
 <header id="header" class="title-page">
-<h1 class="title">A Capitalized Title: Something about a Package <strong>foo</strong></h1>
+<h1 class="title">MCmarkete: An R package for the Monte Carlo Simulation of Financial Markets</h1>
 <span class="shorttitle" style="display: none;" aria-hidden="true"><strong>foo</strong>: A Capitalized Title</span>
 <div class="authors-container" role="list">
 <p class="author-item" role="listitem" style="--rank: 1;">
-<span class="author">Yihui Xie</span>
+<span class="author">Nathan Potgieter</span>
 <br><span class="author-affil">
-RStudio
+Stellenbosch University
 </span>
 </p>
 <p class="author-item" role="listitem" style="--rank: 2;">
@@ -158,19 +158,41 @@ Affiliation
 <section class="abstract" property="dc:abstract">
 <h2 class="abstract-header">Abstract</h2>
 <div class="abstract-content">
-<p>The abstract of the article.</p>
+<p>This document serves as the user manual for the R package “MCmarket” which provides users with the tools to carry out the Monte Carlo simulations of asset markets, with a given correlation structure and dynamic correlations. Elliptical copulas are used to induce a correlation structure and the Archmedian Clayton copula is used to induce greater left-tail dependencies (or dynamic correlations). Various ARIMA + GARCH models can also be called apon to induce mean and varience persistence within the simulated data. Non technical users will be able to select between X presets to induce varying degrees of market risk withoit prior knowedge to the underlying statistical concepts.</p>
 </div>
 <section class="keywords" role="list" aria-labelledby="keywords-header">
-<p><span id="keywords-header" class="keywords-heading" aria-level="3" role="heading">Keywords</span>: <span role="listitem">keywords</span>, <span role="listitem">not capitalized</span>, <span role="listitem"><span class="proglang">Java</span></span>.</p>
+<p><span id="keywords-header" class="keywords-heading" aria-level="3" role="heading">Keywords</span>: <span role="listitem">monte carlo</span>, <span role="listitem">copula</span>, <span role="listitem">garch</span>.</p>
 </section>
 </section>
 
 <main role="main">
 <div id="introduction" class="section level1" number="1">
 <h1><span class="header-section-number">1</span> Introduction</h1>
-<p>This template demonstrates some of the basic <span class="proglang">markdown</span> you’ll need to know to create a JSS article with <strong>pagedown</strong> <span class="citation">(<a href="#ref-R-pagedown" role="doc-biblioref">Xie, Lesur, Thorne, and Tan 2020</a>)</span>.</p>
-<div id="code-formatting" class="section level2" number="1.1">
-<h2><span class="header-section-number">1.1</span> Code formatting</h2>
+<p>In the field of quantitative finance, Monte Carlo simulations have been used extensively for risk management, as well as in the evaluation of portfolio optimisation algorithms. Their unique ability to generate an ensemble of counterfactuals i.e. possible alternative realizations of stochastic processes with identical characteristics, makes them a uniquely powerful tool in aiding decision making in domains dominated by randomness. They are also relatively easy to construct compared to alternative techniques that rely on complex mathematics. Meanwhile, the steady improvement in computer processing power has made the more sophisticated Monte Carlo techniques increasingly viable. The key input to financial market Monte Carlo frameworks is the markets correlation matrix as this greatly effects the potential for diversification and risk management within each counterfactual market.</p>
+<p>This work lays the foundation of a pre-established framework for performing Monte Carlo simulations of financial asset market returns, with a unique altercation that induces increased left-tail dependence. In other words, the correlation between assets increases during bear markets, and market crashes in particular. This functionality is particularly useful when simulating asset markets since it is a well documented phenomenon that financial returns experience increased co-dependence during turbulent times <span class="citation">(<a href="#ref-dyamiccorrelation" role="doc-biblioref"><strong>dyamiccorrelation?</strong></a>)</span>. The simulated markets will adhere to the user-defined correlation structure. This framework also provides the functionality to induce various degrees of mean and variance persistence. This is accomplished by setting the parameters of a ARIMA(p,q) + GARCH(q,p) equation.</p>
+</div>
+<div id="methadology" class="section level1" number="2">
+<h1><span class="header-section-number">2</span> Methadology</h1>
+<p>The framework for Monte Carlo set out involves the following steps:</p>
+<p>This example generates k periods of returns, for D Assets across N counterfactual markets.</p>
+<ol style="list-style-type: decimal">
+<li>Draw a series of k random uniformly distributed numbers (corresponding to k trading periods), across a set of D variables (or D assets), from a multivariate distribution with a given correlation matrix.
+<ul>
+<li>This is accomplished using Euclidean copulas (Gaussian or t-copula), to induce a correlation structure, and Archmediean copula’s (Clayton), to introduce left-tail dependence. This can easily be done using R’s copula package <span class="citation">(<a href="#ref-copula" role="doc-biblioref"><strong>copula?</strong></a>)</span>.</li>
+</ul></li>
+<li>Convert the univariate distributions from being uniformly distributed into something that more resembles the distribution of asset returns. For example one could convert them into normal, student-t or skewed-generalized t distributions.
+<ul>
+<li>Practicily this is done the same way one would convert p-values into test statistics using the dnorm(), dt() and dsgt() functions respectively <span class="citation">(<a href="#ref-baser" role="doc-biblioref"><strong>baser?</strong></a>; <a href="#ref-sgt" role="doc-biblioref"><strong>sgt?</strong></a>)</span>.</li>
+<li>Technically this is accomplished via the inversion of the chosen cumulative distribution function (CDF).</li>
+</ul></li>
+<li>Induce mean and variance persistence to the series, by plugging in the previously simulated series into an ARMA(p,q) + GARCH(q,p) equation as the i.i.d innovations.
+<ul>
+<li>If the parameters are set accordingly the resulting series should possess the volatility clustering observed in empirical asset returns.</li>
+</ul></li>
+<li>The final step is to repeat the first 3 steps N times to generate an ensemble of asset markets, each with the same risk characteristics but different realisation.</li>
+</ol>
+<div id="code-formatting" class="section level2" number="2.1">
+<h2><span class="header-section-number">2.1</span> Code formatting</h2>
 <p>You should use <strong>Pandoc</strong>’s <span class="proglang">markdown</span> but you also can use <span class="math inline">\(\LaTeX\)</span> commands:</p>
 <ul>
 <li><span class="proglang">Java</span> or <span class="math inline">\(\proglang{Java}\)</span></li>
@@ -179,35 +201,30 @@ Affiliation
 </ul>
 </div>
 </div>
-<div id="r-code" class="section level1" number="2">
-<h1><span class="header-section-number">2</span> <span class="proglang">R</span> code</h1>
+<div id="r-code" class="section level1" number="3">
+<h1><span class="header-section-number">3</span> <span class="proglang">R</span> code</h1>
 <p>Can be inserted in regular <span class="proglang">R Markdown</span> blocks.</p>
 <pre class="r r-chunk-code"><code>R&gt; x &lt;- 1:10
 R&gt; x</code></pre>
 <pre><code> [1]  1  2  3  4  5  6  7  8  9 10</code></pre>
 </div>
-<div id="render-the-document" class="section level1" number="3">
-<h1><span class="header-section-number">3</span> Render the document</h1>
+<div id="render-the-document" class="section level1" number="4">
+<h1><span class="header-section-number">4</span> Render the document</h1>
 <p>If you use the option <code>self_contained: false</code> (see line #22 of this <code>Rmd</code> file), don’t click on the <code>Knit</code> button in RStudio. Use instead the <strong>xaringan</strong> <span class="citation">(<a href="#ref-R-xaringan" role="doc-biblioref"><strong>R-xaringan?</strong></a>)</span> RStudio add-in <em>Infinite Moon Reader</em>.</p>
 </div>
 <div id="references" class="section level1 unnumbered">
 <h1>References</h1>
-<div id="refs" class="references csl-bib-body hanging-indent" line-spacing="2">
-<div id="ref-R-pagedown" class="csl-entry">
-Xie Y, Lesur R, Thorne B, Tan X (2020). <em>Pagedown: Paginate the HTML Output of r Markdown with CSS for Print</em>. Retrieved from <a href="https://github.com/rstudio/pagedown">https://github.com/rstudio/pagedown</a>
-</div>
-</div>
 </div>
 </main>
 
 <footer class="article-footer">
 <h3 class="affil-header">Affiliation:</h3>
 <address>
-<p class="author">Yihui Xie</p>
-<p class="author-affil">RStudio</p>
+<p class="author">Nathan Potgieter</p>
+<p class="author-affil">Stellenbosch University</p>
 <p class="author-address"><p>First line<br />
 Second line</p></p>
-<p>E-mail: <a href="mailto:name@company.com" class="email">name@company.com</a></p>
+<p>E-mail: <a href="mailto:19959672@sun.ac.za" class="email">19959672@sun.ac.za</a></p>
 <p>URL: <a href="https://rstudio.com" class="uri">https://rstudio.com</a></p>
 </address>
 <div class="last-page-footer">

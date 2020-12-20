@@ -1,23 +1,23 @@
 ---
 author:
-  - name: Yihui Xie
-    affiliation: RStudio
+  - name: Nathan Potgieter
+    affiliation: Stellenbosch University
     address: |
       First line  
       Second line
-    email: <name@company.com>
+    email: <19959672@sun.ac.za>
     url: <https://rstudio.com>
   - name: Romain Lesur
     affiliation: Affiliation
-title: "A Capitalized Title: Something about a Package **foo**"
+title: "MCmarkete: An R package for the Monte Carlo Simulation of Financial Markets"
 shorttitle: "**foo**:  A Capitalized Title"
 abstract: |
-  The abstract of the article.
+  This document serves as the user manual for the R package "MCmarket" which provides users with the tools to carry out the Monte Carlo simulations of asset markets, with a given correlation structure and dynamic correlations. Elliptical copulas are used to induce a correlation structure and the Archmedian Clayton copula is used to induce greater left-tail dependencies (or dynamic correlations). Various ARIMA + GARCH models can also be called apon to induce mean and varience persistence within the simulated data. Non technical users will be able to select between X presets to induce varying degrees of market risk withoit prior knowedge to the underlying statistical concepts.
 # at least one keyword must be supplied
-keywords: [keywords, not capitalized, "[Java]{.proglang}"]
+keywords: [monte carlo, copula, garch]
 links-to-footnotes: true
 paged-footnotes: true
-bibliography: index.bib
+bibliography: Tex/ref.bib
 output: 
   pagedown::jss_paged:
     self_contained: false
@@ -27,7 +27,24 @@ output:
 
 # Introduction
 
-This template demonstrates some of the basic [markdown]{.proglang} you'll need to know to create a JSS article with **pagedown** [@R-pagedown].
+In the field of quantitative finance, Monte Carlo simulations have been used extensively for risk management, as well as in the evaluation of portfolio optimisation algorithms. Their unique ability to generate an ensemble of counterfactuals i.e. possible alternative realizations of stochastic processes with identical characteristics, makes them a uniquely powerful tool in aiding decision making in domains dominated by randomness. They are also relatively easy to construct compared to alternative techniques that rely on complex mathematics. Meanwhile, the steady improvement in computer processing power has made the more sophisticated Monte Carlo techniques increasingly viable. The key input to financial market Monte Carlo frameworks is the markets correlation matrix as this greatly effects the potential for diversification and risk management within each counterfactual market.
+
+This work lays the foundation of a pre-established framework for performing Monte Carlo simulations of financial asset market returns, with a unique altercation that induces increased left-tail dependence. In other words, the correlation between assets increases during bear markets, and market crashes in particular. This functionality is particularly useful when simulating asset markets since it is a well documented phenomenon that financial returns experience increased co-dependence during turbulent times [@dyamiccorrelation]. The simulated markets will adhere to the user-defined correlation structure. This framework also provides the functionality to induce various degrees of mean and variance persistence. This is accomplished by setting the parameters of a ARIMA(p,q) + GARCH(q,p) equation.
+
+# Methodology
+
+The framework for Monte Carlo set out involves the following steps:
+
+This example generates k periods of returns, for D Assets across N counterfactual markets.
+
+1. Draw a series of k random uniformly distributed numbers (corresponding to k trading periods), across a set of D variables (or D assets), from a multivariate distribution with a given correlation matrix. 
+    + This is accomplished using Euclidean copulas (Gaussian or t-copula), to induce a correlation structure, and Archmediean copula's (Clayton), to introduce left-tail dependence. This can easily be done using R's copula package [@copula]. 
+2. Convert the univariate distributions from being uniformly distributed into something that more resembles the distribution of asset returns. For example one could convert them into normal, student-t or skewed-generalized t distributions. 
+    + Practicily this is done the same way one would convert p-values into test statistics using the dnorm(), dt() and dsgt() functions respectively [@baser; @sgt].
+    + Technically this is accomplished via the inversion of the chosen cumulative distribution function (CDF).
+3. Induce mean and variance persistence to the series, by plugging in the previously simulated series into an ARMA(p,q) + GARCH(q,p) equation as the i.i.d innovations.
+    + If the parameters are set accordingly the resulting series should possess the volatility clustering observed in empirical asset returns. 
+4. The final step is to repeat the first 3 steps N times to generate an ensemble of asset markets, each with the same risk characteristics but different realisation.
 
 ## Code formatting
 

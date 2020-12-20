@@ -96,10 +96,12 @@ sim_inno <- function(corr,
     colnames(data) <- glue::glue("Asset_{1:ncol(data)}")
     data <- as_tibble(data)
 
-    if (marginal_dist == "unif") return(data)  # How to make function stop here?
+    if (!(marginal_dist %in% c("norm", "t", "sgt", "unif"))) stop ("Please supply a valid marginal_dist argument")
+
+    if (marginal_dist == "unif") return(data)  # Does function stop here; Do I put an else here?
 
     #Converting Uniform marginal distributions to norm, t or sgt.
-    if (!(marginal_dist %in% c("norm", "t", "sgt", "unif"))) stop ("Please supply a valid marginal_dist argument")
+
     if (marginal_dist == "norm") {
         if (is.null(marginal_dist_model)) {
             marginal_dist_model <- list(mu=0, sigma = 1)
