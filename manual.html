@@ -158,7 +158,7 @@ Affiliation
 <section class="abstract" property="dc:abstract">
 <h2 class="abstract-header">Abstract</h2>
 <div class="abstract-content">
-<p>This document serves as the user manual for the R package “MCmarket” which provides users with the tools to carry out the Monte Carlo simulations of asset markets, with a given correlation structure and dynamic correlations. Elliptical copulas are used to induce a correlation structure and the Archmedian Clayton copula is used to induce greater left-tail dependencies (or dynamic correlations). Various ARIMA + GARCH models can also be called apon to induce mean and varience persistence within the simulated data. Non technical users will be able to select between X presets to induce varying degrees of market risk withoit prior knowedge to the underlying statistical concepts.</p>
+<p>This work presents <strong>MCmarket</strong> an R package designed to provide users with the tools to carry out the Monte Carlo simulation of asset markets. The framework set out in the package uses Elliptical copulas to give rise to the correlation structure and the Archmedian Clayton copula to induce left-tail dependence (or dynamic correlations). Various ARIMA + GARCH models can also be called apon to produce mean and varience persistence. __Non technical users will be able to select between X presets to induce varying degrees of market risk without requiring prior knowedge of the underlying statistical techniques.</p>
 </div>
 <section class="keywords" role="list" aria-labelledby="keywords-header">
 <p><span id="keywords-header" class="keywords-heading" aria-level="3" role="heading">Keywords</span>: <span role="listitem">monte carlo</span>, <span role="listitem">copula</span>, <span role="listitem">garch</span>.</p>
@@ -169,11 +169,12 @@ Affiliation
 <div id="introduction" class="section level1" number="1">
 <h1><span class="header-section-number">1</span> Introduction</h1>
 <p>In the field of quantitative finance, Monte Carlo simulations have been used extensively for risk management, as well as in the evaluation of portfolio optimisation algorithms. Their unique ability to generate an ensemble of counterfactuals i.e. possible alternative realizations of stochastic processes with identical characteristics, makes them a uniquely powerful tool in aiding decision making in domains dominated by randomness. They are also relatively easy to construct compared to alternative techniques that rely on complex mathematics. Meanwhile, the steady improvement in computer processing power has made the more sophisticated Monte Carlo techniques increasingly viable. The key input to financial market Monte Carlo frameworks is the markets correlation matrix as this greatly effects the potential for diversification and risk management within each counterfactual market.</p>
-<p>This work lays the foundation of a pre-established framework for performing Monte Carlo simulations of financial asset market returns, with a unique altercation that induces increased left-tail dependence. In other words, the correlation between assets increases during bear markets, and market crashes in particular. This functionality is particularly useful when simulating asset markets since it is a well documented phenomenon that financial returns experience increased co-dependence during turbulent times <span class="citation">(<a href="#ref-dyamiccorrelation" role="doc-biblioref"><strong>dyamiccorrelation?</strong></a>)</span>. The simulated markets will adhere to the user-defined correlation structure. This framework also provides the functionality to induce various degrees of mean and variance persistence. This is accomplished by setting the parameters of a ARIMA(p,q) + GARCH(q,p) equation.</p>
+<p>This work lays out a pre-established framework for performing Monte Carlo simulations of financial asset market returns, with a unique alteration that produces increased left-tail dependence. In other words, the correlation between assets increases during bear markets, and market crashes in particular. This functionality is particularly useful when simulating asset markets since it is a well documented phenomenon that financial returns experience increased co-dependence during turbulent times <span class="citation">(<a href="#ref-dyamiccorrelation" role="doc-biblioref"><strong>dyamiccorrelation?</strong></a>)</span>. The simulated markets will adhere to the user-defined correlation structure. This framework also provides the functionality to induce various degrees of mean and variance persistence. This is accomplished with a high degree of precision by setting the exact parameters of an ARIMA(p,q) + APGARCH(q,p) equation for which the series will adhere.</p>
+<p>The aim of developing this package was to provide users with a set of functions that enable them to simulate financial market data with a highly generalizable set of risk factors and minimal knowledge of coding and/or underlying mathematical techniques. Due to the important dynamic correlations experienced within financial markets during crisis periods, the functionality to induce various levels of the left-tail dependence within the market multivariate distribution was also implemented. <strong>PRESETS</strong></p>
 </div>
-<div id="methadology" class="section level1" number="2">
-<h1><span class="header-section-number">2</span> Methadology</h1>
-<p>The framework for Monte Carlo set out involves the following steps:</p>
+<div id="methodology" class="section level1" number="2">
+<h1><span class="header-section-number">2</span> Methodology</h1>
+<p>The Monte Carlo framework involves the following 4 steps:</p>
 <p>This example generates k periods of returns, for D Assets across N counterfactual markets.</p>
 <ol style="list-style-type: decimal">
 <li>Draw a series of k random uniformly distributed numbers (corresponding to k trading periods), across a set of D variables (or D assets), from a multivariate distribution with a given correlation matrix.
@@ -191,8 +192,12 @@ Affiliation
 </ul></li>
 <li>The final step is to repeat the first 3 steps N times to generate an ensemble of asset markets, each with the same risk characteristics but different realisation.</li>
 </ol>
-<div id="code-formatting" class="section level2" number="2.1">
-<h2><span class="header-section-number">2.1</span> Code formatting</h2>
+</div>
+<div id="examples" class="section level1" number="3">
+<h1><span class="header-section-number">3</span> Examples</h1>
+<p>Simulating an ensemble of 10 markets across 20 assets with high variance persistence, 252 periods and</p>
+<div id="code-formatting" class="section level2" number="3.1">
+<h2><span class="header-section-number">3.1</span> Code formatting</h2>
 <p>You should use <strong>Pandoc</strong>’s <span class="proglang">markdown</span> but you also can use <span class="math inline">\(\LaTeX\)</span> commands:</p>
 <ul>
 <li><span class="proglang">Java</span> or <span class="math inline">\(\proglang{Java}\)</span></li>
@@ -201,15 +206,15 @@ Affiliation
 </ul>
 </div>
 </div>
-<div id="r-code" class="section level1" number="3">
-<h1><span class="header-section-number">3</span> <span class="proglang">R</span> code</h1>
+<div id="r-code" class="section level1" number="4">
+<h1><span class="header-section-number">4</span> <span class="proglang">R</span> code</h1>
 <p>Can be inserted in regular <span class="proglang">R Markdown</span> blocks.</p>
 <pre class="r r-chunk-code"><code>R&gt; x &lt;- 1:10
 R&gt; x</code></pre>
 <pre><code> [1]  1  2  3  4  5  6  7  8  9 10</code></pre>
 </div>
-<div id="render-the-document" class="section level1" number="4">
-<h1><span class="header-section-number">4</span> Render the document</h1>
+<div id="render-the-document" class="section level1" number="5">
+<h1><span class="header-section-number">5</span> Render the document</h1>
 <p>If you use the option <code>self_contained: false</code> (see line #22 of this <code>Rmd</code> file), don’t click on the <code>Knit</code> button in RStudio. Use instead the <strong>xaringan</strong> <span class="citation">(<a href="#ref-R-xaringan" role="doc-biblioref"><strong>R-xaringan?</strong></a>)</span> RStudio add-in <em>Infinite Moon Reader</em>.</p>
 </div>
 <div id="references" class="section level1 unnumbered">
