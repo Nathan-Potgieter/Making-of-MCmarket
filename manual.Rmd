@@ -41,11 +41,13 @@ MCmarket incorporates two broad families of copula's, namely the Elliptical and 
 
 Tawn's (1988) theorem states that a linear weighted combination of copulas is its own unique copula. Therefore, by weighting the random draws obtained from a multivariate Archimedean copula with those from an Archimedean Clayton copula, a hybrid copula with a given correlation structure and enhanced left-tail dependence is __synthesized__. Thus, if  $C_1(U_N)$  and  $C_2(U_N)$  are multivariate copula's of dimension D and $w$ is a weighting variable between 0 and 1, then 
 
-<center> $$C(U_N)=w.C_1(U_N)+(1-w)C_2(U_N)$$ </center>
+<center> $C(U_N)=w.C_1(U_N)+(1-w)C_2(U_N)$ </center>
 
 is a unique copula. Therefore, a hybrid copula $C(U_N)$ can be created by linearly weighting an Elliptical and Archimedean copula of the same dimension. 
 
-Another important property of copulas is that their component variables are invariant to monotonic (strictly increasing) transformations. This property allows one to transform the components from Uniform(0,1) into any other closed form distribution via the inversion of the semi-parametric CDF [@rupeprt; @ruenzi2011]. MCmarket provides users with the functionality to transform the marginal distributions into normal, student-t or skewed generalized t distributions. it is important to note that this step is deterministic and therefore involves no randomness given the realisations from the random uniformly distributed draws.  
+Another important property of copulas is that their component variables are invariant to monotonic (strictly increasing) transformations [@rupeprt]. This property allows one to transform the components from Uniform(0,1) into any other closed form distribution via the inversion of the semi-parametric CDF [@ruenzi2011]. MCmarket provides users with the functionality to transform the Uniform(0,1) marginals into normal, student-t or skewed generalized t distributions. It is important to note that this transformation step is deterministic as it involves no randomness given the realisations from the random uniformly distributed draws.  
+
+MCmarket also provides the functionality to induce mean and/or variance persistence into the simulated data. In which case the transformed components can be plugged into an ARMA(p,q) + GARCH(q,p) equation as the innovations of the process. This allows the user to precisely select exact parameters describing the time-series properties of the simulated data. APGARCH 
 
 
 
