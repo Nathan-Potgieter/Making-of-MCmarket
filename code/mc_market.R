@@ -67,8 +67,8 @@ mc_market <- function(corr,
                       left_cop_param = 4,
                       marginal_dist = "norm",
                       marginal_dist_model = NULL,         # may want to change to a list
-                      ts_model = list(),
-                      parallel = FALSE) {
+                      ts_model = list()
+                      ) {
 
         mc_data <- 1:N %>%
             map(~sim_asset_market(corr = corr,

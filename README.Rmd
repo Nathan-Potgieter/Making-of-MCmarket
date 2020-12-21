@@ -534,7 +534,7 @@ rCopula(1000, galcop) %>% plot()
 
 Tawn's (1988) Theorem: Shows that a copula is a convex set and every convex combination of existing copula functions is again a copula. 
 
-Thus, if  $C_1(U_N)$  and  $C_2(U_N)$  are multivariate copula's of dimension N and $w$ is a weighting variable between 0 and 1, then 
+Thus, if  $C_1(U_N)$  and  $C_2(U_N)$  are multivariate copula's of dimension D and $w$ is a weighting variable between 0 and 1, then 
 
 <center> $$C(U_N)=w.C_1(U_N)+(1-w)C_2(U_N)$$ </center>
 

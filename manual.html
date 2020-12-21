@@ -158,7 +158,7 @@ Affiliation
 <section class="abstract" property="dc:abstract">
 <h2 class="abstract-header">Abstract</h2>
 <div class="abstract-content">
-<p>This work presents <strong>MCmarket</strong> an R package designed to provide users with the tools to carry out the Monte Carlo simulation of asset markets. The framework set out in the package uses Elliptical copulas to give rise to the correlation structure and the Archmedian Clayton copula to induce left-tail dependence (or dynamic correlations). Various ARIMA + GARCH models can also be called apon to produce mean and varience persistence. __Non technical users will be able to select between X presets to induce varying degrees of market risk without requiring prior knowedge of the underlying statistical techniques.</p>
+<p>This work presents <strong>MCmarket</strong> an R package designed to provide users with the tools to carry out the Monte Carlo simulation of asset markets. The framework set out in the package uses Elliptical copulas to give rise to the correlation structure and the Archimedean Clayton copula to induce left-tail dependence (or dynamic correlations). Various ARIMA + GARCH models can also be called apon to produce mean and varience persistence. __Non technical users will be able to select between X presets to induce varying degrees of market risk without requiring prior knowedge of the underlying statistical techniques.</p>
 </div>
 <section class="keywords" role="list" aria-labelledby="keywords-header">
 <p><span id="keywords-header" class="keywords-heading" aria-level="3" role="heading">Keywords</span>: <span role="listitem">monte carlo</span>, <span role="listitem">copula</span>, <span role="listitem">garch</span>.</p>
@@ -174,12 +174,24 @@ Affiliation
 </div>
 <div id="methodology" class="section level1" number="2">
 <h1><span class="header-section-number">2</span> Methodology</h1>
+<p>The MCmarket package uses copula’s to define the markets multivariate distributions, these distributions are then used to produce random, uniformly distributed, draws which serve as the starting point of the Monte Carlo process and are the only source of randomness <span class="citation">(<a href="#ref-ruppert" role="doc-biblioref"><strong>ruppert?</strong></a>)</span>. A useful way to think of a copula is as a multivariate cumulative distribution function (CDF) with Uniform (0,1) marginal distributions <span class="citation">(<a href="#ref-ruppert" role="doc-biblioref"><strong>ruppert?</strong></a>[p. 183])</span>. Therefore, copulas contain only information on the dependencies within the multivariate distribution and know nothing about the components marginal CDFs <span class="citation">(<a href="#ref-ruppert" role="doc-biblioref"><strong>ruppert?</strong></a>)</span>.</p>
+<p>MCmarket incorporates two broad families of copula’s, namely the Elliptical and Archimedean. The Elliptical Gaussian and t-copula’s define the respective multivariate normal and t distributions, these are used for their convenient property of relying on a <span class="math inline">\(D \times D\)</span> correlation matrix to define their distribution. Archimedean copula’s, on the other hand, define distributions which exhibit either left or right tail dependence. This refers to an increase in dependence within either the left or tail of the multivariate distribution, where dependence tends to increases as observations occur further in the tails. Due to issues concerning the speed of computation and functionality within high dimensions only the the Clayton copula is used. The Clayton copula was found to be particularly useful since it naturally possesses left-tail dependence and can be defined in high dimension spaces with limited cost to computation speed.</p>
+<p>Tawn’s (1988) theorem states that a linear weighted combination of copulas is its own unique copula. Therefore, by weighting the random draws obtained from a multivariate Archimedean copula with those from an Archimedean Clayton copula, a hybrid copula with a given correlation structure and enhanced left-tail dependence is <strong>synthesized</strong>. Thus, if <span class="math inline">\(C_1(U_N)\)</span> and <span class="math inline">\(C_2(U_N)\)</span> are multivariate copula’s of dimension D and <span class="math inline">\(w\)</span> is a weighting variable between 0 and 1, then</p>
+<center>
+<span class="math display">\[C(U_N)=w.C_1(U_N)+(1-w)C_2(U_N)\]</span>
+</center>
+<p>is a unique copula. Therefore, a hybrid copula <span class="math inline">\(C(U_N)\)</span> can be created by linearly weighting an Elliptical and Archimedean copula of the same dimension.</p>
+<p>Another important property of copulas is that their component variables are invariant to monotonic (strictly increasing) transformations. This property allows one to transform the components from Uniform(0,1) into any other closed form distribution via the inversion of the semi-parametric CDF <span class="citation">(<a href="#ref-ruenzi2011" role="doc-biblioref">Ruenzi and Weigert 2011</a>; <a href="#ref-rupeprt" role="doc-biblioref"><strong>rupeprt?</strong></a>)</span>.</p>
+</div>
+<div id="process" class="section level1" number="3">
+<h1><span class="header-section-number">3</span> Process</h1>
 <p>The Monte Carlo framework involves the following 4 steps:</p>
 <p>This example generates k periods of returns, for D Assets across N counterfactual markets.</p>
 <ol style="list-style-type: decimal">
-<li>Draw a series of k random uniformly distributed numbers (corresponding to k trading periods), across a set of D variables (or D assets), from a multivariate distribution with a given correlation matrix.
+<li>Draw a series of k random, uniformly distributed numbers (corresponding to k trading periods), across a set of D variables (or D assets), from a multivariate distribution with a given correlation matrix.
 <ul>
-<li>This is accomplished using Euclidean copulas (Gaussian or t-copula), to induce a correlation structure, and Archmediean copula’s (Clayton), to introduce left-tail dependence. This can easily be done using R’s copula package <span class="citation">(<a href="#ref-copula" role="doc-biblioref"><strong>copula?</strong></a>)</span>.</li>
+<li>This is accomplished using Euclidean copulas (Gaussian or t-copula) to induce a correlation structure, as well as the Archmediean Clayton copula to introduce left-tail dependence. This can easily be done using R’s copula package <span class="citation">(<a href="#ref-copula" role="doc-biblioref"><strong>copula?</strong></a>)</span>.</li>
+<li>Tawn’s (1988) theorem states that a linear weighted combination of copulas is its own unique copula. Therefore, by weighting the random draws obtained from a multivariate Archmedian copula with those from a Clayton copula, a hybrid copula with a given correlation structure and enhanced left-tail dependence is created.</li>
 </ul></li>
 <li>Convert the univariate distributions from being uniformly distributed into something that more resembles the distribution of asset returns. For example one could convert them into normal, student-t or skewed-generalized t distributions.
 <ul>
@@ -193,11 +205,48 @@ Affiliation
 <li>The final step is to repeat the first 3 steps N times to generate an ensemble of asset markets, each with the same risk characteristics but different realisation.</li>
 </ol>
 </div>
-<div id="examples" class="section level1" number="3">
-<h1><span class="header-section-number">3</span> Examples</h1>
-<p>Simulating an ensemble of 10 markets across 20 assets with high variance persistence, 252 periods and</p>
-<div id="code-formatting" class="section level2" number="3.1">
-<h2><span class="header-section-number">3.1</span> Code formatting</h2>
+<div id="examples" class="section level1" number="4">
+<h1><span class="header-section-number">4</span> Examples</h1>
+<p>Simulating 500 periods across an ensemble of 20 markets with 20 assets with high variance persistence, high market risk and 4 non-overlapping clusters.</p>
+<pre class="r r-chunk-code"><code>R&gt; # Loading required packages and functions
+R&gt; library(pacman)
+R&gt; p_load(tidyverse, copula, lubridate, glue)
+R&gt; source(&quot;code/gen_corr.R&quot;)
+R&gt; source(&quot;code/sim_inno.R&quot;)
+R&gt; source(&quot;code/sim_garch.R&quot;)
+R&gt; source(&quot;code/sim_asset_market.R&quot;)
+R&gt; source(&quot;code/mc_market.R&quot;)
+R&gt; 
+R&gt; # Generating a 20 by 20 correlation matrix with 4 non-overlapping clusters
+R&gt; corr &lt;- gen_corr(D = 20, Clusters = &quot;non-overlapping&quot;, Num_Clusters = 4)
+R&gt; 
+R&gt; # Simulating markets
+R&gt; mc_market(corr, 
+R+           N = 20, # Number of ensembles/counterfactuals
+R+           k = 500, # Number of periods
+R+           mv_dist = &quot;t&quot;, # Student-t copula chosen for the part of the 
+R+                          # multivariate distribution that adheres to the correlation structure. 
+R+           mv_df = 3, # Degrees of freedom for student-t copula
+R+           left_cop_weight = 0.25, # weight
+R+           left_cop_param = 5,
+R+           ts_model = list()
+R+           )</code></pre>
+<pre><code># A tibble: 200,000 x 4
+   date       Asset   Universe     Return
+   &lt;date&gt;     &lt;chr&gt;   &lt;chr&gt;         &lt;dbl&gt;
+ 1 2020-12-21 Asset_1 Universe_1 -0.0191 
+ 2 2020-12-22 Asset_1 Universe_1  0.0359 
+ 3 2020-12-23 Asset_1 Universe_1 -0.0119 
+ 4 2020-12-24 Asset_1 Universe_1 -0.00427
+ 5 2020-12-25 Asset_1 Universe_1  0.0130 
+ 6 2020-12-26 Asset_1 Universe_1 -0.0192 
+ 7 2020-12-27 Asset_1 Universe_1 -0.0244 
+ 8 2020-12-28 Asset_1 Universe_1 -0.00609
+ 9 2020-12-29 Asset_1 Universe_1  0.0175 
+10 2020-12-30 Asset_1 Universe_1  0.0113 
+# ... with 199,990 more rows</code></pre>
+<div id="code-formatting" class="section level2" number="4.1">
+<h2><span class="header-section-number">4.1</span> Code formatting</h2>
 <p>You should use <strong>Pandoc</strong>’s <span class="proglang">markdown</span> but you also can use <span class="math inline">\(\LaTeX\)</span> commands:</p>
 <ul>
 <li><span class="proglang">Java</span> or <span class="math inline">\(\proglang{Java}\)</span></li>
@@ -206,19 +255,24 @@ Affiliation
 </ul>
 </div>
 </div>
-<div id="r-code" class="section level1" number="4">
-<h1><span class="header-section-number">4</span> <span class="proglang">R</span> code</h1>
+<div id="r-code" class="section level1" number="5">
+<h1><span class="header-section-number">5</span> <span class="proglang">R</span> code</h1>
 <p>Can be inserted in regular <span class="proglang">R Markdown</span> blocks.</p>
 <pre class="r r-chunk-code"><code>R&gt; x &lt;- 1:10
 R&gt; x</code></pre>
 <pre><code> [1]  1  2  3  4  5  6  7  8  9 10</code></pre>
 </div>
-<div id="render-the-document" class="section level1" number="5">
-<h1><span class="header-section-number">5</span> Render the document</h1>
+<div id="render-the-document" class="section level1" number="6">
+<h1><span class="header-section-number">6</span> Render the document</h1>
 <p>If you use the option <code>self_contained: false</code> (see line #22 of this <code>Rmd</code> file), don’t click on the <code>Knit</code> button in RStudio. Use instead the <strong>xaringan</strong> <span class="citation">(<a href="#ref-R-xaringan" role="doc-biblioref"><strong>R-xaringan?</strong></a>)</span> RStudio add-in <em>Infinite Moon Reader</em>.</p>
 </div>
 <div id="references" class="section level1 unnumbered">
 <h1>References</h1>
+<div id="refs" class="references csl-bib-body hanging-indent" line-spacing="2">
+<div id="ref-ruenzi2011" class="csl-entry">
+Ruenzi S, Weigert F (2011). <span>“Extreme Dependence Structures and the Cross-Section of Expected Stock Returns.”</span> In <em>EFA 2011 meetings paper</em>.
+</div>
+</div>
 </div>
 </main>
 

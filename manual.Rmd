@@ -10,9 +10,9 @@ author:
   - name: Romain Lesur
     affiliation: Affiliation
 title: "MCmarkete: An R package for the Monte Carlo Simulation of Financial Markets"
-shorttitle: "**foo**:  A Capitalized Title"
+shorttitle: "MCmarket"
 abstract: |
-  This work presents __MCmarket__ an R package designed to provide users with the tools to carry out the Monte Carlo simulation of asset markets. The framework set out in the package uses Elliptical copulas to give rise to the correlation structure and the Archmedian Clayton copula to induce left-tail dependence (or dynamic correlations). Various ARIMA + GARCH models can also be called apon to produce mean and varience persistence. __Non technical users will be able to select between X presets to induce varying degrees of market risk without requiring prior knowedge of the underlying statistical techniques.
+  This work presents __MCmarket__ an R package designed to provide users with the tools to carry out the Monte Carlo simulation of asset markets. The framework set out in the package uses Elliptical copulas to give rise to the correlation structure and the Archimedean Clayton copula to induce left-tail dependence (or dynamic correlations). Various ARIMA + GARCH models can also be called apon to produce mean and varience persistence. __Non technical users will be able to select between X presets to induce varying degrees of market risk without requiring prior knowedge of the underlying statistical techniques.
 # at least one keyword must be supplied
 keywords: [monte carlo, copula, garch]
 links-to-footnotes: true
@@ -35,6 +35,22 @@ The aim of developing this package was to provide users with a set of functions 
 
 # Methodology
 
+The MCmarket package uses copula's to define the markets multivariate distributions, these distributions are then used to produce random, uniformly distributed, draws which serve as the starting point of the Monte Carlo process and are the only source of randomness [@ruppert]. A useful way to think of a copula is as a multivariate cumulative distribution function (CDF) with Uniform (0,1) marginal distributions [@ruppert[p. 183]]. Therefore, copulas contain only information on the dependencies within the multivariate distribution and know nothing about the components marginal CDFs [@ruppert]. 
+
+MCmarket incorporates two broad families of copula's, namely the Elliptical and Archimedean. The Elliptical Gaussian and t-copula's define the respective multivariate normal and t distributions, these are used for their convenient property of relying on a $D \times D$ correlation matrix to define their distribution. Archimedean copula's, on the other hand, define distributions which exhibit either left or right tail dependence. This refers to an increase in dependence within either the left or tail of the multivariate distribution, where dependence tends to increases as observations occur further in the tails. Due to issues concerning the speed of computation and functionality within high dimensions only the the Clayton copula is used. The Clayton copula was found to be particularly useful since it naturally possesses left-tail dependence and can be defined in high dimension spaces with limited cost to computation speed. 
+
+Tawn's (1988) theorem states that a linear weighted combination of copulas is its own unique copula. Therefore, by weighting the random draws obtained from a multivariate Archimedean copula with those from an Archimedean Clayton copula, a hybrid copula with a given correlation structure and enhanced left-tail dependence is __synthesized__. Thus, if  $C_1(U_N)$  and  $C_2(U_N)$  are multivariate copula's of dimension D and $w$ is a weighting variable between 0 and 1, then 
+
+<center> $$C(U_N)=w.C_1(U_N)+(1-w)C_2(U_N)$$ </center>
+
+is a unique copula. Therefore, a hybrid copula $C(U_N)$ can be created by linearly weighting an Elliptical and Archimedean copula of the same dimension. 
+
+Another important property of copulas is that their component variables are invariant to monotonic (strictly increasing) transformations. This property allows one to transform the components from Uniform(0,1) into any other closed form distribution via the inversion of the semi-parametric CDF [@rupeprt; @ruenzi2011]. MCmarket provides users with the functionality to transform the marginal distributions into normal, student-t or skewed generalized t distributions. it is important to note that this step is deterministic and therefore involves no randomness given the realisations from the random uniformly distributed draws.  
+
+
+
+# Process
+
 The Monte Carlo framework involves the following 4 steps:
 
 This example generates k periods of returns, for D Assets across N counterfactual markets.
@@ -54,19 +70,29 @@ This example generates k periods of returns, for D Assets across N counterfactua
 Simulating 500 periods across an ensemble of 20 markets with 20 assets with high variance persistence, high market risk and 4 non-overlapping clusters.
 
 ```{r example 1}
+
+# Loading required packages and functions
+library(pacman)
+p_load(tidyverse, copula, lubridate, glue)
+source("code/gen_corr.R")
+source("code/sim_inno.R")
+source("code/sim_garch.R")
+source("code/sim_asset_market.R")
+source("code/mc_market.R")
+
 # Generating a 20 by 20 correlation matrix with 4 non-overlapping clusters
-corr <- gen_corr(D = 20, Clusters = "non-overlapping", Num_Clusters = 4) %>% ggcorrplot::ggcorrplot()
+corr <- gen_corr(D = 20, Clusters = "non-overlapping", Num_Clusters = 4)
 
 # Simulating markets
 mc_market(corr, 
           N = 20, # Number of ensembles/counterfactuals
           k = 500, # Number of periods
-          mv_dist = "t", # Student-t copula chosen for the part of the multivariate distribution that ahdears to the correlation structure. 
+          mv_dist = "t", # Student-t copula chosen for the part of the 
+                         # multivariate distribution that adheres to the correlation structure. 
           mv_df = 3, # Degrees of freedom for student-t copula
           left_cop_weight = 0.25, # weight
           left_cop_param = 5,
-          
-          
+          ts_model = list()
           )
 
 ```
