@@ -6,26 +6,18 @@
 #' @param Num_Layers an positive integer value between 1 and 4, specifying the number of cluster layers. Only needed if using "overlapping" clusters.
 #' @return a N by N correlation matrix.
 #'
-#' @importFrom xts as.xts timeBased
-#'
-#' @import propagate
-#' @import stats
-#'
-#' @importFrom rlang :=
-#' @importFrom rlang := enquo quo_get_expr
 #' @examples
 #'
 #' \dontrun{
-#' library(propagate) ??????????????????????????????????????????????????????????
 #' library(ggcorrplot)
 #'
 #' ### This generates a 50 by 50 correlation matrix with no clusters.
 #' gen_corr(N = 50, Clusters = "none) %>%
-#'          ggcorrplot::ggcorrplot(title = "Overlapping Clusters")
+#'          ggcorrplot(title = "Overlapping Clusters")
 #'
 #' ### This generates a 50 by 50 correlation matrix with 5 non-overlapping clusters.
 #' gen_corr(N = 50, Clusters = "non-overlapping) %>%
-#'          ggcorrplot::ggcorrplot(title = "Overlapping Clusters")
+#'          ggcorrplot(title = "Overlapping Clusters")
 #'
 #' ### This generates a 60 by 60 correlation matrix consisting
 #' ### of 4 layers with 10, 5, 3 and 2 clusters respectively.
@@ -54,14 +46,14 @@ gen_corr <- function (D = 50,
         } else
 
                 if(Clusters == "non-overlapping"){
-                        #----------------------
+                        #-----------------------------------
                         # distinct non-overlapping clusters:
-                        #----------------------
+                        #-----------------------------------
 
                         if(is.null(Num_Clusters)) stop("Please provide a valid Num_Clusters argument when using Overlapping clusters")
 
 
-                        Sigma <- matrix(0.9, D, D)
+                        Sigma <- matrix(0.6, D, D)
                         diag(Sigma) <- 1
 
 
@@ -86,31 +78,31 @@ gen_corr <- function (D = 50,
                                         }
 
 
-                                Sigma <- matrix(0.9, D, D)
+                                Sigma <- matrix(0.8, D, D)
                                 diag(Sigma) <- 1
 
                                 for (i in 1:Grps[1]) {
                                         ix <- seq((i-1) * D / Grps[1] + 1, i * D / Grps[1])
-                                        Sigma[ix, -ix] <- 0.7
+                                        Sigma[ix, -ix] <- 0.5
                                 }
                                 if(Num_Layers>=2){
                                         for (i in 1:Grps[2]) {
                                                 ix <- seq((i-1) * D / Grps[2] + 1, i * D / Grps[2])
-                                                Sigma[ix, -ix] <- 0.5
+                                                Sigma[ix, -ix] <- 0.3
                                         } }
                                 if(Num_Layers>=3){
                                         for (i in 1:Grps[3]) {
                                                 ix <- seq((i-1) * D / Grps[3] + 1, i * D / Grps[3])
-                                                Sigma[ix, -ix] <- 0.3
+                                                Sigma[ix, -ix] <- 0.15
                                         } }
                                 if(Num_Layers>=4){
                                         for (i in 1:Grps[4]) {
                                                 ix <- seq((i-1) * D / Grps[4] + 1, i * D / Grps[4])
-                                                Sigma[ix, -ix] <- 0.15
+                                                Sigma[ix, -ix] <- 0.05
                                         } }
                         }
 
-        Sigma <- propagate::cor2cov(Sigma, runif(D, 1, 5))  #Is this necessary???
+        Sigma <- propagate::cor2cov(Sigma, runif(D, 1, 5))
         corr <- cov2cor(Sigma)
 
         return(corr)

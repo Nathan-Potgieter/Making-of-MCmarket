@@ -166,7 +166,7 @@ Note that none of the code in this section is run when building this README, due
 #### Getting SNP 500 data since 2000
 - The code below pulls in SNP 500 data since 2000/01/01.
 ```{r SNP_data, eval=FALSE, echo=TRUE}
-p_load(tidyverse, tidyquant, lubridate)
+pacman::p_load(tidyverse, tidyquant, lubridate)
 source("code/impute_missing_returns.R")
 
 # save current system date to a variable
@@ -361,11 +361,19 @@ labeled_training_data <- list(stressed_market = stressed_market_corr,
                               normal_market = normal_market_corr)
 save(labeled_training_data, file = "data/labeled_training_data.Rda")
 
+# Creating and saving a data frame of covariance matrices.
+corr_mats <- list(cov_normal = normal_market_cov,
+                  cov_stressed = stressed_market_cov,
+                  cov_rally = rally_market_cov)
+save(corr_mats, file = "data/corr_mats.Rda")
+
 #------------------------------------------
 #Now to generate unlabelled training data
-#Hence why sharp = FALSE in gen_random_port
+#Hence why sharp = FALSE in gen_random_port.
+# This section has been scrapped for now;
+# corrgan may only be implemented at a later stage
 #------------------------------------------
-
+'
 plan(multiprocess)
 training_data_indx <-
     1:10000 %>% future_map(~gen_random_port(dim = 50, sharp = FALSE), .progress = TRUE) %>% reduce(bind_rows)
@@ -376,7 +384,7 @@ training_data <- 1:length(market_data) %>% map(~calc_cor(market_data, .x))
 
 
 save(training_data, file = "data/training_data.Rda")
-
+'
 ```
 
 #### An Example of Each Type of Correlation Matrix 

@@ -1,17 +1,23 @@
 #' @title sim_garch
-#' @description This function takes a vector of random numbers and induces mean and variance persistence by plugging them into an ARIMA + GARCH model as the innovations.
-#' @note  It is suggested that the randomly distributed numbers be mean zero and standard deviation one, as those attributes are better set in the model argument.
-#' @param innovations a vector containing the random numbers/ the innovations of the ARIMA + GARCH process.
-#' @param model a list containing various ARIMA + GARCH, AP-GARCH, GJR-GARCH, ect... parameters allowing once to specify the time series properties of the simulated returns. Note that parameter combinations resulting in non-stationary of the mean or variance will produce NAN's. The default values are set as list(omega = 5e-04, alpha = 0, gamma = NULL, beta = 0, mu = 0, ar = NULL, ma = NULL, delta = 2). Note that omega is a key input indicating the constant coefficient of the variance equation and that each parameter can be a vector of length <= 5, this will induce a higher order ARIMA + GARCH process. For more information on the various parameters see the user manual.
-#' @param simple a logical parameters if the output should be a simple vector containing the resulting ARIMA + GARCH series, or if FALSE a three column dataframe containing z - the innovations, h - the conditional variance and y - ARIMA + GARCH series.
-#' @return if simple = TRUE a vector of the resulting ARIMA + GARCH series, else if simple = FALSE a a three column dataframe containing z - the innovations, h - the conditional variance and y - ARIMA + GARCH series. Note the length of the reasulting series will be less that that of the innovations as ARIMA + GARCH models require up to 5 innovations (depending on the max order) to produce the first result.
+#' @description This function takes a vector of random numbers and induces mean and variance
+#' persistence by plugging them into an ARIMA + GARCH model as the innovations.
+#' @note  It is suggested that the randomly distributed numbers be mean zero and standard
+#' deviation one, as those attributes are better set in the model argument.
+#' @param innovations a vector containing the random numbers/ the innovations of the
+#' ARIMA + GARCH process.
+#' @param model a list containing various ARMA + APARCH parameters, allowing once to specify the
+#' time series properties of the simulated returns. Note that parameter combinations resulting in
+#' non-stationary of the mean or variance will produce NAN's. The default values are set as
+#'  list(omega = 5e-04, alpha = 0, gamma = NULL, beta = 0, mu = 0, ar = NULL, ma = NULL, delta = 2).
+#'  See the "model" parameter under fGarch::garchSpec() for more details regarding the parameters.
+#' @param simple a logical parameters if the output should be a simple vector containing the resulting
+#' ARIMA + GARCH series, or if FALSE a three column dataframe containing z - the innovations, h - the
+#'  conditional variance and y - ARIMA + GARCH series.
+#' @return if simple = TRUE a vector of the resulting ARIMA + GARCH series, else if simple = FALSE a
+#' three column dataframe containing z - the innovations, h - the conditional variance and y - ARIMA +
+#' GARCH series. Note the length of the reasulting series will be less that that of the innovations as
+#'  ARIMA + GARCH models require up to 5 innovations (depending on the max order) to produce the first result.
 #'
-#' @importFrom xts as.xts timeBased
-#'
-#' @import base ????????????????????????????????????????????????????????????????
-#'
-#' @importFrom rlang :=
-#' @importFrom rlang := enquo quo_get_expr
 #' @examples
 #'
 #' \dontrun{
