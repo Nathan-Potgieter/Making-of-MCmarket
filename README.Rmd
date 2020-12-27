@@ -335,11 +335,17 @@ get_market_data <- function(index_df, i){
 }
 
 #Separating portfolio by sharp ratio
-stressed_market_data <- 1:nrow(stressed_market) %>% map(~get_market_data(stressed_market, .x))
+stressed_market_data <- 
+  1:nrow(stressed_market) %>% 
+  map(~get_market_data(stressed_market, .x))
 
-rally_market_data <- 1:nrow(rally_market) %>% map(~get_market_data(rally_market, .x))
+rally_market_data <- 
+  1:nrow(rally_market) %>% 
+  map(~get_market_data(rally_market, .x))
 
-normal_market_data <- 1:nrow(normal_market) %>% map(~get_market_data(normal_market, .x))
+normal_market_data <- 
+  1:nrow(normal_market) %>% 
+  map(~get_market_data(normal_market, .x))
 
 #Calculating Covariance matrix using the fitHeavyTail method
 calc_cov <- function(df, i){
@@ -348,11 +354,17 @@ calc_cov <- function(df, i){
         fitHeavyTail::fit_mvt() %>% .$cov
 }
 
-stressed_market_cov <- 1:length(stressed_market_data) %>% map(~calc_cov(stressed_market_data, .x))
+stressed_market_cov <- 
+  1:length(stressed_market_data) %>% 
+  map(~calc_cov(stressed_market_data, .x))
 
-rally_market_cov <- 1:length(rally_market_data) %>% map(~calc_cov(rally_market_data, .x))
+rally_market_cov <- 
+  1:length(rally_market_data) %>% 
+  map(~calc_cov(rally_market_data, .x))
 
-normal_market_cov <- 1:length(normal_market_data) %>% map(~calc_cov(normal_market_data, .x))
+normal_market_cov <- 
+  1:length(normal_market_data) %>% 
+  map(~calc_cov(normal_market_data, .x))
 
 #Joining and saving datasets
 #Called Labelled training data because it will be used to train CorGAN at a later stage
@@ -362,10 +374,23 @@ labeled_training_data <- list(stressed_market = stressed_market_corr,
 save(labeled_training_data, file = "data/labeled_training_data.Rda")
 
 # Creating and saving a data frame of covariance matrices.
-corr_mats <- list(cov_normal = normal_market_cov,
+cov_mats <- list(cov_normal = normal_market_cov,
                   cov_stressed = stressed_market_cov,
                   cov_rally = rally_market_cov)
-save(corr_mats, file = "data/corr_mats.Rda")
+save(cov_mats, file = "data/cov_mats.Rda")
+
+# Creating and saving a data frame of correlation matrices.
+cor_mats <- 
+  list(
+    cor_normal = 1:length(normal_market_cov) %>% 
+                       map(~cov2cor(normal_market_cov[[.x]])),
+    cor_stressed = 1:length(stressed_market_cov) %>% 
+                       map(~cov2cor(stressed_market_cov[[.x]])),
+    cor_rally = 1:length(rally_market_cov) %>% 
+                       map(~cov2cor(rally_market_cov[[.x]]))
+  )
+save(cor_mats, file = "data/cor_mats.Rda")
+
 
 #------------------------------------------
 #Now to generate unlabelled training data
