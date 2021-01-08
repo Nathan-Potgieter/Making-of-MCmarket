@@ -49,7 +49,7 @@
 #' }
 #' @export
 
-sim_garch <- function(innovations, model= list(), simple = TRUE) {
+sim_garch <- function(innovations, model = list(), simple = TRUE) {
 
     #default parameters for garch model
     default <- list(omega = 5e-04,
@@ -85,7 +85,7 @@ sim_garch <- function(innovations, model= list(), simple = TRUE) {
 
     #Generating innovations
     z_length <- n + max.order
-    z <- c(innovations)[1:z_length]  #z is the random innovation
+    z <- c(innovations)[(6-max.order):length(innovations)]  #z is the vector of random innovation
 
     h <- c(rep(model$omega/(1 - sum(model$alpha) - sum(model$beta)),
                times = max.order), rep(NA, n))    #h is the conditional standard deviation
@@ -106,11 +106,12 @@ sim_garch <- function(innovations, model= list(), simple = TRUE) {
     }
 
     if(simple == TRUE) {
-        data <- y[(m + 1):(n + m)] #removes burn in data and only provides ARIMA + GARCH series.
+        data <- c(rep(NA, 5), y[(m + 1):(n + m)]) #removes burn in data and only provides ARIMA + GARCH series.
     } else {
-        data <- tibble(z = z[(m + 1):(n + m)],  # Innovations
-                       h = h[(m + 1):(n + m)]^deltainv, #Conditional Standard deviation
-                       y = y[(m + 1):(n + m)])  # ARIMA + GARCH series
+        data <- tibble(z = c(rep(NA, 5), z[(m + 1):(n + m)]),  # Innovations
+                       h = c(rep(NA, 5), h[(m + 1):(n + m)]^deltainv), #Conditional Standard deviation
+                       y = c(rep(NA, 5), y[(m + 1):(n + m)]))  # ARIMA + GARCH series
     }
     return(data)
 }
+

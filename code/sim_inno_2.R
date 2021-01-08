@@ -5,7 +5,8 @@ sim_inno_2 <- function(corr,
                      left_cop_weight = 0,
                      left_cop_param = 5,
                      marginal_dist = "norm",
-                     marginal_dist_model = NULL) {
+                     marginal_dist_model = NULL,
+                     ts_model = NULL) {
 
     N <- nrow(corr)
     k <- k + 5   # extra room for sim_garch to as lags at later stage.
@@ -91,44 +92,56 @@ sim_inno_2 <- function(corr,
 
     if (marginal_dist == "norm") {
 
-        data %>% left_join(., args, by = "Asset") %>%
-            group_by(Asset) %>%
+        data <- data %>% left_join(., args, by = "Asset") %>%
+            group_by(Asset) %>%  arrange(date) %>%
             mutate(Return =  qnorm(Value, mean, sd)) %>%
             select(date, Asset, Return)
 
     } else
         if (marginal_dist == "t") {
 
-            data %>% left_join(., args, by = "Asset") %>%
-                group_by(Asset) %>%
+            data <- data %>% left_join(., args, by = "Asset") %>%
+                group_by(Asset) %>%  arrange(date) %>%
                 mutate(Return = qt(Value, df =  df, ncp =  mean)) %>%
                 select(date, Asset, Return)
 
         } else
             if (marginal_dist == "sgt") {
 
-                data %>% left_join(., args, by = "Asset") %>%
-                    group_by(Asset) %>%
+                data <- data %>% left_join(., args, by = "Asset") %>%
+                    group_by(Asset) %>% arrange(date) %>%
                     mutate(Return = qsgt(Value, mean, sd, lambda, p, q)) %>%
                     select(date, Asset, Return)
 
             }
 
+    if (is.null(ts_model)) {
+
+        data <- data %>% dplyr::filter(date >= first(date) %m+% days(5))
+        return(data)
+
+    } else {
+        data <- data %>% group_by(Asset) %>% arrange(date) %>%
+            mutate(Return = sim_garch(Return, model = ts_model)) %>% na.omit()
+        return(data)
+        }
 }
 
-data <-
+set.seed(123)
 sim_inno_2(diag(10), k = 300, mv_dist = "t", mv_df = 2, left_cop_weight = 0.5,
            left_cop_param = 2, marginal_dist = "norm",
-           marginal_dist_model = list(mu = 0, sd = 1:10))
+           marginal_dist_model = list(mu = 0, sd = 1),
+           ts_model = list(omega = 1))
+set.seed(123)
+sim_inno_2(diag(10), k = 300, mv_dist = "t", mv_df = 2, left_cop_weight = 0.5,
+           left_cop_param = 2, marginal_dist = "norm",
+           marginal_dist_model = list(mu = 0, sd = 1),
+           ts_model = NULL)
 
-unique(data$date) %>% length()
 
 
-data %>% group_by(Asset) %>% arrange(date) %>%
-    split(data$Asset) %>% map(~sim_garch(.x$Return))
 
+#Edit sim garch to give NA's for burn in period: Done!!!
 
-#Edit sim garch to give NA's for burn in period??
-data %>% group_by(Asset) %>% mutate(Return = sim_garch(Return))
 
 
