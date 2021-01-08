@@ -1427,9 +1427,8 @@ mc_market <- function(corr,
                       left_cop_param = 4,
                       marginal_dist = "norm",
                       marginal_dist_model = NULL,         # may want to change to a list
-                      ts_model = list(),
-                      parallel = FALSE) {
-  if (parallel == FALSE) {
+                      ts_model = list() {
+
     mc_data <- 1:N %>% 
       map(~sim_asset_market(corr = corr, 
                             k = k,
@@ -1441,23 +1440,8 @@ mc_market <- function(corr,
                             marginal_dist_model = marginal_dist_model,
                             ts_model = ts_model)) %>% # Must add additional arguments
       reduce(left_join, by = c("date","Asset"))
-} else
-  if (parallel == TRUE) {
-    mc_data <- 1:N %>% 
-      future_map(~sim_asset_market(corr = corr, 
-                                   k = k,
-                                   mv_dist = mv_dist, 
-                                   mv_df = mv_df,
-                                   left_cop_weight = left_cop_weight,
-                                   left_cop_param = left_cop_param,
-                                   marginal_dist = marginal_dist, 
-                                   marginal_dist_model = marginal_dist_model, 
-                                   ts_model = ts_model)) %>%   # Must add additional arguments
-      reduce(left_join, by = c("date","Asset"))
-  }
-  colnames(mc_data) <- c("date", "Asset", glue("Universe_{1:(ncol(mc_data)-2)}"))
-  
-  mc_data %>% gather(Universe, Return, c(-date, -Asset))
+    
+    mc_data %>% gather(Universe, Return, c(-date, -Asset))
 }
 ```
 
