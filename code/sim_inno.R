@@ -65,7 +65,7 @@
 #'
 #' }
 #' @export
-
+#'
 sim_inno <- function(corr,
                      k = 252,
                      mv_dist = "t",
@@ -75,8 +75,8 @@ sim_inno <- function(corr,
                      marginal_dist = "norm",
                      marginal_dist_model = NULL) {
 
-    N <- nrow(corr)
-    k <- k + 5   # extra room for sim_garch to use later
+    Dim <- nrow(corr)
+    k <- k + 5   # extra room for sim_garch to as lags at later stage.
     Cor <- P2p(corr)
 
     # Specifying  Copulas
@@ -89,20 +89,23 @@ sim_inno <- function(corr,
                                 dispstr = "un",
                                 df = mv_df,
                                 param = Cor,
-                                dim = N)
-        } else
-            if (mv_dist == "norm") {
-                Ecop <- ellipCopula(family = "normal", dispstr = "un", param = Cor, dim = N)
-            }
+                                dim = Dim)
+    } else
+        if (mv_dist == "norm") {
+            Ecop <- ellipCopula(family = "normal",
+                                dispstr = "un",
+                                param = Cor,
+                                dim = Dim)
+        }
 
     # Left-cop (Archemedian copula)
-    if (left_cop_weight != 0) {
-        Acop <- archmCopula(family = "clayton", param = left_cop_param, dim = N)
-    }
-
-    #generating random (uniformly distributed) draws from hybrid copula's
     if (left_cop_weight < 0|left_cop_weight > 1) stop("Please provide a valid left_cop_weight between 0 and 1")
-
+    if (left_cop_weight != 0) {
+        Acop <- archmCopula(family = "clayton",
+                            param = left_cop_param,
+                            dim = Dim)
+    }
+    # Generating random (uniformly distributed) draws from hybrid copula's
     if (left_cop_weight == 0) {
         data <- rCopula(k, Ecop)
     } else
@@ -111,8 +114,8 @@ sim_inno <- function(corr,
         } else
             data <- left_cop_weight*rCopula(k, Acop) + (1-left_cop_weight)*rCopula(k, Ecop)
 
-    #naming and converting data to tibble
-    colnames(data) <- glue::glue("Asset_{1:ncol(data)}")
+    # Naming and converting data to tibble
+    colnames(data) <- glue::glue("Asset_{1:Dim}")
     data <- as_tibble(data)
 
     if (!(marginal_dist %in% c("norm", "t", "sgt", "unif"))) stop ("Please supply a valid marginal_dist argument")
@@ -149,19 +152,20 @@ sim_inno <- function(corr,
                     stop ('Please supply a valid marginal_dist_model when using marginal_dist="sgt".')
                 else
                     if (is.null(marginal_dist_model$mu)) {marginal_dist_model$mu <- 0}
-                if (is.null(marginal_dist_model$sd)) {marginal_dist_model$sd <- 1}  # Do I need an else?? Seems like including it will not work
-                if (is.null(marginal_dist_model$lambda)|
-                    is.null(marginal_dist_model$p)|
-                    is.null(marginal_dist_model$q)) stop('Please supply valid arguments for lambda, p and q when using marginal_dist = "sgt".')
+                    if (is.null(marginal_dist_model$sd)) {marginal_dist_model$sd <- 1}  # Do I need an else?? Seems like including it will not work
+                    if (is.null(marginal_dist_model$lambda)|
+                       is.null(marginal_dist_model$p)|
+                       is.null(marginal_dist_model$q)) stop('Please supply valid arguments for lambda, p and q when using marginal_dist = "sgt".')
 
-                data <- data %>%
-                    map_df(~qsgt(.x,
-                                 mu =  marginal_dist_model$mu,
-                                 sigma = marginal_dist_model$sd,
-                                 lambda = marginal_dist_model$lambda,
-                                 p = marginal_dist_model$p,
-                                 q = marginal_dist_model$q,
-                                 mean.cent = TRUE))
-                return(data)
-            }
+                        data <- data %>%
+                            map_df(~qsgt(.x,
+                                         mu =  marginal_dist_model$mu,
+                                         sigma = marginal_dist_model$sd,
+                                         lambda = marginal_dist_model$lambda,
+                                         p = marginal_dist_model$p,
+                                         q = marginal_dist_model$q,
+                                         mean.cent = TRUE))
+                        return(data)
+                }
 }
+

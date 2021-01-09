@@ -1490,5 +1490,11 @@ market <-
                .id = "Universe")
 
 object.size(x = market) %>% print(units = "Mb")
+
+
+
+ts_model <- list(omega = 1:10)
+
+ifelse(is.null(ts_model$omega), 5e-04, as.array(ts_model$omega))
 ```
 
