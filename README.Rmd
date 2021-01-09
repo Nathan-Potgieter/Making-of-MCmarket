@@ -1479,3 +1479,16 @@ mc_data %>%
   theme_bw()+
   theme(legend.position = "none") 
 ```
+
+
+```{r}
+N <- 1000
+pb <- dplyr::progress_estimated(N)   # this must be named pb
+market <-
+       map_dfr(1:N,
+               ~sim_market_with_progress(diag(10)),
+               .id = "Universe")
+
+object.size(x = market) %>% print(units = "Mb")
+```
+

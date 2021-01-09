@@ -69,28 +69,23 @@ sim_inno_2 <- function(corr,
 
     # Warnings
     if (marginal_dist == "norm" & is.null(marginal_dist_model)) marginal_dist_model <- list(mu=0, sd = 1)
-    if (marginal_dist == "t" & is.null(marginal_dist_model))  marginal_dist_model <- list(mu=0, df = 5, sd = 1)
+    if (marginal_dist == "t" & is.null(marginal_dist_model))  marginal_dist_model <- list(mu=0, df = 5)
     if (marginal_dist == "sgt" & is.null(marginal_dist_model)) stop ('Please supply a valid marginal_dist_model when using marginal_dist="sgt".')
-
-    if (marginal_dist == "sgt") {
-        if (is.null(marginal_dist_model$mu)) marginal_dist_model$mu <- 0
-        if (is.null(marginal_dist_model$sd)) marginal_dist_model$sd <- 1  # Do I need an else?? Seems like including it will not work
-        if (is.null(marginal_dist_model$lambda)|
-            is.null(marginal_dist_model$p)|
-            is.null(marginal_dist_model$q)) stop('Please supply valid arguments for lambda, p and q when using marginal_dist = "sgt".')
-    }
-
 
     #Converting Uniform marginal distributions to norm, t or sgt.
     args <- tibble(Asset = glue::glue("Asset_{1:N}")) %>%
                        mutate(mean = marginal_dist_model$mu,
                               sd = marginal_dist_model$sd,
+                              ncp = marginal_dist_model$ncp,
                               df = marginal_dist_model$df,
                               lambda = marginal_dist_model$lambda,
                               p = marginal_dist_model$p,
                               q = marginal_dist_model$q)
 
     if (marginal_dist == "norm") {
+
+        if(is.null(marginal_dist_model$mu)) stop('Please supply a valid mu parameter when using marginal_dist = "norm".')
+        if(is.null(marginal_dist_model$sd)) stop('Please supply a valid sd parameter when using marginal_dist = "norm".')
 
         data <- data %>% left_join(., args, by = "Asset") %>%
             group_by(Asset) %>%  arrange(date) %>%
@@ -100,13 +95,22 @@ sim_inno_2 <- function(corr,
     } else
         if (marginal_dist == "t") {
 
+            if(is.null(marginal_dist_model$ncp)) stop('Please supply a valid ncp parameter when using marginal_dist = "t".')
+            if(is.null(marginal_dist_model$df)) stop('Please supply a valid df parameter when using marginal_dist = "t".')
+
             data <- data %>% left_join(., args, by = "Asset") %>%
                 group_by(Asset) %>%  arrange(date) %>%
-                mutate(Return = qt(Value, df =  df, ncp =  mean)) %>%
+                mutate(Return = qt(Value, df =  df, ncp =  ncp)) %>%
                 select(date, Asset, Return)
 
         } else
             if (marginal_dist == "sgt") {
+
+                    if (is.null(marginal_dist_model$mu)) marginal_dist_model$mu <- 0
+                    if (is.null(marginal_dist_model$sd)) marginal_dist_model$sd <- 1
+                    if (is.null(marginal_dist_model$lambda)|
+                        is.null(marginal_dist_model$p)|
+                        is.null(marginal_dist_model$q)) stop('Please supply valid arguments for lambda, p and q when using marginal_dist = "sgt".')
 
                 data <- data %>% left_join(., args, by = "Asset") %>%
                     group_by(Asset) %>% arrange(date) %>%
@@ -128,14 +132,14 @@ sim_inno_2 <- function(corr,
 }
 
 set.seed(123)
-sim_inno_2(diag(10), k = 300, mv_dist = "t", mv_df = 2, left_cop_weight = 0.5,
-           left_cop_param = 2, marginal_dist = "norm",
-           marginal_dist_model = list(mu = 0, sd = 1),
+sim_inno_2(diag(10), k = 300, mv_dist = "norm", mv_df = 2, left_cop_weight = 0.5,
+           left_cop_param = 2, marginal_dist = "sgt",
+           marginal_dist_model = list(mu = 0, sd = 1, lambda = 0.5, p = Inf, q = 2),
            ts_model = list(omega = 1))
 set.seed(123)
-sim_inno_2(diag(10), k = 300, mv_dist = "t", mv_df = 2, left_cop_weight = 0.5,
-           left_cop_param = 2, marginal_dist = "norm",
-           marginal_dist_model = list(mu = 0, sd = 1),
+sim_inno_2(diag(10), k = 300, mv_dist = "norm", mv_df = 2, left_cop_weight = 0.5,
+           left_cop_param = 2, marginal_dist = "sgt",
+           marginal_dist_model = list(mu = 0, sd = 1, lambda = 0.5, p = Inf, q = 2),
            ts_model = NULL)
 
 
