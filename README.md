@@ -4,27 +4,33 @@ README
 # MCmarket an R Package Designed for Simulating Asset Market Returns
 
 This is the README for Nathan Potgieter’s financial econometrics
-project, in which a framework for the Monte Carlo simulation of asset
-markets is developed.
+project. This work sets out and packages a framework for the Monte Carlo
+simulation of asset markets. The package will be available in on githib
+under the “Nathan-Potgieter/MCmarket” repository.
 
 ## Aim
 
 The aim of this project is to develop a general and easy to use Monte
-Carlo simulation package that generates asset return data, with a
-prespecified correlation structure and dynamic dependencies. Ideally the
-user will be able to adjust a “leverage” parameter, which will determine
-the markets left-tail dependency, and in turn effect the likelihood of
-entering a “crisis period” characterized by extreme joint drawdowns.
+Carlo simulation package designed to generate asset return data, with a
+prespecified correlation structure and dynamic correlations. Here
+dynamic correlations refer to a property of a multivariate distribution
+where average correlations/dependencies increase within the left-tail.
+Ideally the user will be able to adjust a “leverage” parameter, which
+will determine the markets left-tail dependency, and in turn effect the
+likelihood of entering a “crisis period” characterized by extreme joint
+drawdowns.
 
-Elliptical copulas are used to induce the correlation in the simulated
-data, while Archmedian copulas are used induce greater left-tail
-dependencies.
+Elliptical copulas are used to specify the correlation structure in the
+simulated data and the Archmedian Clayton copula is used induce greater
+left-tail dependencies.
 
-The data will also be simulated to exhibit volatility clustering, this
-is accomplished by utilizing various ARIMA(p,q) + GARCH(q,p) models, the
+The data will also be simulated to posses volatility persistence, this
+way the simulated data can exhbit volatility clusters. This is
+accomplished by utilizing various ARMA(1,1) + APARCH(1,1) models, the
 parameters of which can be adjusted to induce alternative risk
-characteristics. Various ARIMA(p,q) + APGARCH(q,p) structures can be
-called on to induce mean and variance persistence.
+characteristics. Since APARCH nests at least 7 other volatility models,
+the user effectively has a wide range of volatility models from which to
+choose.
 
 ## Monte Carlo Framework
 
@@ -37,35 +43,37 @@ markets.
     (corresponding to k trading periods), across a set of D variables
     (or D assets), from a multivariate distribution with a given
     correlation matrix.
-    -   This is accomplished using Euclidean (Gaussian or t-copula) and
-        Archmediean (Clayton) copula’s and can easily be done using the
-        rcopula function.
-2.  Convert the uniformly distributed univariate distributions into
-    something that more resembles the distribution of asset returns. For
-    example one could convert them into normal, student-t or
+      - This is accomplished using Euclidean (Gaussian or t-copula) and
+        the Archmediean Clayton copula’s and can easily be done using
+        the *ellipCopula*, *archmCopula* and *rcopula* functions from
+        the *copula* package.
+2.  Convert the uniformly distributed data into something that more
+    resembles the distribution of asset returns. Functionality is
+    provided to convert them into normal, student-t or
     skewed-generalized t distributions.
-    -   This is done the same way one would convert p-values into test
+      - This is done the same way one would convert p-values into test
         statistics using the dnorm() and dsgt() functions respectively.
-    -   Technically this is accomplished via the inversion of the
+      - Technically this is accomplished via the inversion of the
         cumulative distribution function (CDF).
 3.  This step induces mean and variance persistence to the series, by
-    plugging them into a ARIMA(p,q) + GARCH(q,p) equation as
-    innovations.
-    -   If the parameters are set accordingly the resulting series
+    plugging the random numbers resulting from step 2 into a ARMA(1,1) +
+    APARCH(1,1) equation as the innovations.
+      - If the parameters are set accordingly the resulting series
         should possess the volatility clustering observed in empirical
         asset returns.
 4.  The final step is to repeat the first 3 steps N times to generate an
-    ensemble of asset markets, each with the same risk characteristics
-    but different realisations.
+    ensemble of asset markets, each with the same risk characteristics.
 
 #### Loading Packages
 
 ``` r
 library(pacman)
-#These packages are used in functions.
-p_load(tidyverse, copula, fGarch, lubridate, forecast, sgt, glue)
+# Loading MCmarket
+p_load(MCmarket)
+#These packages are used in the Monte Carlo (MC) functions.
+p_load(tidyverse, copula, lubridate, forecast, sgt, glue)
 #These packages are only used in research and demonstration tasks.
-p_load(tbl2xts)
+p_load(tbl2xts, fGarch)
 ```
 
 # The Set up
@@ -73,144 +81,167 @@ p_load(tbl2xts)
 ## Generating Ad Hoc Covarience matrix
 
 In this section I developed a simple function that allows the user to
-easily generate a correlation matrix with a desired cluster structure.
-This will be used as a key input when simulating financial markets. Note
-that the majority of the code was provided by Nico Katzke. The function
-is located in the gen\_corr.R code file.
+easily generate a correlation matrix with a desired correlation
+structure. This will be used as a key input when simulating the
+financial markets. Note that the majority of the code was provided by
+Nico Katzke. The function is located in the gen\_corr.R code file.
 
-### gen\_corr’s arguments
-
-1.  D - is the number of assets in the universe
-
-2.  Clusters - a character string specifying the type of cluster
-    structure. Available options are “none”, for a correlation matrix
-    with no clusters, “non-overlapping” for a correlation matrix with
-    number one layer of clusters, and “overlapping” for a correlation
-    matrix with Num\_Layers and Num\_clusters per layer.
-
-3.  Num\_Clusters - if Clusters is equal to “non-overlapping” or “none”
-    then Num\_Clusters is an integer value specifying the number of
-    clusters. If Clusters = “overlapping” then Num\_Clusters must be a
-    vector of length equal to Num\_Layers specifying the number of
-    clusters per layer.
-
-4.  Num\_Layers - an integer value between 1 and 4, specifying the
-    number of cluster layers. Only needed of using “overlapping”
-    clusters.
+### gen\_corr
 
 ``` r
-#Co-Varience matrix generatimg function
+#' @title gen_corr
+#' @description This function allows users to easily generate ad hoc correlation
+#' matrices with a set number of clusters and up to 4 layers.
+#' @param D The number of variables, generates an D by D correlation matrix.
+#' @param clusters a character string specifying the type of cluster structure.
+#' Available options are "none", for a correlation matrix with no clusters,
+#' "non-overlapping" for a correlation matrix with one layer of clusters, and
+#' "overlapping" for a correlation matrix with up to 4 layers and a set number
+#' of clusters per layer.
+#' @param num_clusters if clusters = "non-overlapping" or clusters = "none" then
+#' num_clusters is an integer value specifying the number of clusters. If clusters =
+#' "overlapping" then num_clusters must be a vector, arranged in descending order, of
+#' length equal to num_Layers specifying the number of clusters per layer.
+#' @param num_Layers an positive integer value between 1 and 4, specifying the number
+#' of cluster layers. Only needed if using "overlapping" clusters.
+#' @return this function returns a D by D correlation matrix.
+#'
+#' @import propagate
+#'
+#' @examples
+#' \dontrun{
+#' library(ggcorrplot)
+#'
+#' ### This generates a 50 by 50 correlation matrix with no clusters.
+#' gen_corr(D = 50, clusters = "none) %>%
+#'          ggcorrplot(title = "Overlapping clusters")
+#'
+#' ### This generates a 50 by 50 correlation matrix with 5 non-overlapping clusters.
+#' gen_corr(D = 50, clusters = "non-overlapping) %>%
+#'          ggcorrplot(title = "Overlapping clusters")
+#'
+#' ### This generates a 60 by 60 correlation matrix consisting
+#' ### of 4 layers with 10, 5, 3 and 2 clusters respectively.
+#' gen_corr(D = 60,
+#'          clusters = "overlapping",
+#'          num_Layers = 4,
+#'          num_clusters = c(10,5,3,2)) %>%
+#'                   ggcorrplot(title = "Overlapping clusters")
+#'
+#' }
+#' @export
+gen_corr <- function (D = 50,
+                      clusters = c("none", "non-overlapping", "overlapping"),
+                      num_clusters = NULL,
+                      num_Layers = NULL) {
 
-gen_corr <- function (D = 50, 
-                      Clusters = c("none", "non-overlapping", "overlapping"),
-                      Num_Clusters = NULL, 
-                      Num_Layers = NULL) {
-    
-Grps <- Num_Clusters
-#set.seed(123)
-    
-if(Clusters == "none"){
-    # Unclustered covariance matrix
-    Sigma <- diag(D)
-    for (i in 1:D) for (j in 1:D) Sigma[i,j] <- 0.9^abs(i-j)
-    Sigma <- propagate::cor2cov(Sigma, runif(D, 1, 5))
-    corr <- cov2cor(Sigma)
-} else
+        Grps <- num_clusters
+        #set.seed(123)
 
-if(Clusters == "non-overlapping"){
-    #----------------------
-    # distinct non-overlapping clusters:
-    #----------------------
-    
-    if(is.null(Num_Clusters)) stop("Please provide a valid Num_Clusters argument when using Overlapping clusters")
-    
-    
-    Sigma <- matrix(0.9, D, D)
-    diag(Sigma) <- 1
+        if (!(clusters %in%  c("none", "non-overlapping", "overlapping"))) stop("Please provide a valid clusters argument")
 
-    
-for (i in 1:Grps) {
-      ix <- seq((i-1) * D / Grps + 1, i * D / Grps)
-      Sigma[ix, -ix] <- 0.0001                       #think about
-    }
-    Sigma <- propagate::cor2cov(Sigma, runif(D, 1, 5))
-    corr <- cov2cor(Sigma)
-} else
-  
-if(Clusters == "overlapping"){
-    #----------------------
-    # distinct overlapping clusters:
-    #----------------------
-  
-  if(is.null(Num_Layers)|Num_Layers<2){
-      stop("Please provide a valid Num_Layers argument when using Overlapping clusters")
-      }else
-  if(length(Num_Clusters) != Num_Layers){
-      stop("Please provide a Num_Clusters argument with length equal to Num_Layers")
-  }
-    
-  
-    Sigma <- matrix(0.9, D, D)
-    diag(Sigma) <- 1
+        if(clusters == "none"){
+                # Unclustered covariance matrix
+                Sigma <- diag(D)
+                for (i in 1:D) for (j in 1:D) Sigma[i,j] <- 0.9^abs(i-j)
+                Sigma <- propagate::cor2cov(Sigma, runif(D, 1, 5))
+                corr <- cov2cor(Sigma)
+        } else
 
-    for (i in 1:Grps[1]) {
-      ix <- seq((i-1) * D / Grps[1] + 1, i * D / Grps[1])
-      Sigma[ix, -ix] <- 0.7
-    }
-    if(Num_Layers>=2){
-        for (i in 1:Grps[2]) {
-          ix <- seq((i-1) * D / Grps[2] + 1, i * D / Grps[2])
-          Sigma[ix, -ix] <- 0.5
-        } }
-    if(Num_Layers>=3){
-        for (i in 1:Grps[3]) {
-      ix <- seq((i-1) * D / Grps[3] + 1, i * D / Grps[3])
-      Sigma[ix, -ix] <- 0.3
-        } }
-    if(Num_Layers>=4){
-        for (i in 1:Grps[4]) {
-      ix <- seq((i-1) * D / Grps[4] + 1, i * D / Grps[4])
-      Sigma[ix, -ix] <- 0.15
-        } } 
-    }
+                if(clusters == "non-overlapping"){
+                        #----------------------
+                        # distinct non-overlapping clusters:
+                        #----------------------
 
-    Sigma <- propagate::cor2cov(Sigma, runif(D, 1, 5))  #Is this necessary???
-    corr <- cov2cor(Sigma)
+                        if(is.null(num_clusters)) stop("Please provide a valid num_clusters argument when using Overlapping clusters")
 
-return(corr)
+                        Sigma <- matrix(0.9, D, D)
+                        diag(Sigma) <- 1
 
-  }
+                        for (i in 1:Grps) {
+                                ix <- seq((i-1) * D / Grps + 1, i * D / Grps)
+                                Sigma[ix, -ix] <- 0.0001                       #think about
+                        }
+                        Sigma <- propagate::cor2cov(Sigma, runif(D, 1, 5))
+                        corr <- cov2cor(Sigma)
+                } else
+
+                        if(clusters == "overlapping"){
+                                #----------------------
+                                # distinct overlapping clusters:
+                                #----------------------
+
+                                if(is.null(num_Layers)|num_Layers<2){
+                                        stop("Please provide a valid num_Layers argument when using Overlapping clusters")
+                                }else
+                                        if(length(num_clusters) != num_Layers){
+                                                stop("Please provide a num_clusters argument with length equal to num_Layers")
+                                        }
+
+                                Sigma <- matrix(0.6, D, D)
+                                diag(Sigma) <- 1
+
+                                for (i in 1:Grps[1]) {
+                                        ix <- seq((i-1) * D / Grps[1] + 1, i * D / Grps[1])
+                                        Sigma[ix, -ix] <- 0.7
+                                }
+                                if(num_Layers>=2){
+                                        for (i in 1:Grps[2]) {
+                                                ix <- seq((i-1) * D / Grps[2] + 1, i * D / Grps[2])
+                                                Sigma[ix, -ix] <- 0.5
+                                        } }
+                                if(num_Layers>=3){
+                                        for (i in 1:Grps[3]) {
+                                                ix <- seq((i-1) * D / Grps[3] + 1, i * D / Grps[3])
+                                                Sigma[ix, -ix] <- 0.3
+                                        } }
+                                if(num_Layers>=4){
+                                        for (i in 1:Grps[4]) {
+                                                ix <- seq((i-1) * D / Grps[4] + 1, i * D / Grps[4])
+                                                Sigma[ix, -ix] <- 0.05
+                                        } }
+                        }
+
+        Sigma <- propagate::cor2cov(Sigma, runif(D, 1, 5))  #Is this necessary???
+        corr <- cov2cor(Sigma)
+
+        return(corr)
+
+}
 ```
 
 Demonstrating the use of gen\_corr
 
 ``` r
-source("code/gen_corr.R")
-gen_corr(D = 60, Clusters = "overlapping", Num_Layers = 4, Num_Clusters = c(10,5,3,2)) %>% ggcorrplot::ggcorrplot(title = "Overlapping Clusters", hc.order = TRUE)
+gen_corr(D = 60, clusters = "overlapping", num_layers = 4, num_clusters = c(10,5,4,2)) %>% ggcorrplot::ggcorrplot(title = "Overlapping Clusters", hc.order = TRUE)
 ```
 
 <img src="README_files/figure-gfm/using gen_corr-1.png" width="80%" height="80%" />
 
 ## Creating a Dataset of Emperical Correlation Matrix’s
 
-Since it would also be useful for users of the package to have some
-labelled types of empirical correlation matrices at their disposal, a
-data set of stressed rally and normal covariance matrices is now built.
+Since it would also be useful for MCmarkets’s users to have easy acess
+to some labeled empirical correlation matrices, a data set containing
+correlation matricies labeled “stressed”, “rally” and “normal” is now
+constructed.
 
-S&P500 data since 1/01/2000 is used to sample covariance matrices that
+S\&P500 data since 1/01/2000 is used to sample covariance matrices that
 can be used as inputs in the Monte Carlo procedure. These matrices will
-be made available as part of the MCmarket package. They can albe be used
-at a later stage to train CorrGAN.
+be made available as part of the MCmarket package. They can also be used
+at a train Generative adversarial network (GAN) models, like CorrGAN
+(<https://marti.ai>).
 
 Note that none of the code in this section is run when building this
-README, due to concerns regarding the speed of computation.
+README, It would simply take forever to knit this document.
 
 #### Getting SNP 500 data since 2000
 
--   The code below pulls in SNP 500 data since 2000/01/01.
+  - The code below pulls in SNP 500 data since 2000/01/01.
+
+<!-- end list -->
 
 ``` r
-p_load(tidyverse, tidyquant, lubridate)
+pacman::p_load(tidyverse, tidyquant, lubridate)
 source("code/impute_missing_returns.R")
 
 # save current system date to a variable
@@ -266,15 +297,15 @@ portfolios of 50 assets over a random time slice of 252 days since
 2000/01/01 from the SNP\_return data set. The portfolios are then labels
 as follows:
 
--   ‘stressed market’: A market is ‘stressed’ whenever the equi-weighted
+  - ‘stressed market’: A market is ‘stressed’ whenever the equi-weighted
     basket of stocks has a Sharpe below -0.5 over the year of study (252
     trading days).
 
--   ‘rally market’: A market is ‘rallying’ whenever the equi-weighted
+  - ‘rally market’: A market is ‘rallying’ whenever the equi-weighted
     basket of stocks under has a Sharpe above 2 over the year of study
     (252 trading days).
 
--   ‘normal market’: A market is ‘normal’ whenever the equi-weighted
+  - ‘normal market’: A market is ‘normal’ whenever the equi-weighted
     basket of stocks under has a Sharpe in-between -0.5 and 2 over the
     year of study (252 trading days).
 
@@ -291,7 +322,7 @@ p_load(tidyverse, furrr, PerformanceAnalytics, tbl2xts, rmsfuns, lubridate, fitH
 
 #This function generates random portfolios with option to supply sharp ratio, 
 #sharp = TRUE takes substantially longer to calculate.
-gen_random_port <- function(dim = 100, sharp = TRUE){
+gen_random_port <- function(dim = 100, sharp = TRUE) {
     #list of Assets from which sample
     symbols <- SNP_returns %>%
         dplyr::filter(date==first(date)) %>%
@@ -351,8 +382,8 @@ gen_random_port <- function(dim = 100, sharp = TRUE){
             training_data <- list(dates = list(sample_dates),
                                   symbols = list(sample_symbols),
                                   sharp = Sharp[1]) %>% as_tibble()
-    }
-
+        }
+    return(training_data)
 }
 #------------------------------------------
 #First I generate the labeled training data
@@ -361,9 +392,8 @@ gen_random_port <- function(dim = 100, sharp = TRUE){
 #Generating N random portfolios, with Sharp ratio's.
 # The furrr packages is used to speed up computation
 set.seed(5245214)
-plan(multiprocess)
 training_data_sharp <-
-    1:1000 %>% future_map(~gen_random_port(dim = 50), .progress = TRUE) %>% reduce(bind_rows)
+    1:500 %>% map_dfr(~gen_random_port(dim = 50))
 save(training_data_sharp, file = "data/training_data_sharp.Rda")
 
 load("data/training_data_sharp.Rda")
@@ -390,11 +420,17 @@ get_market_data <- function(index_df, i){
 }
 
 #Separating portfolio by sharp ratio
-stressed_market_data <- 1:nrow(stressed_market) %>% map(~get_market_data(stressed_market, .x))
+stressed_market_data <- 
+  1:nrow(stressed_market) %>% 
+  map(~get_market_data(stressed_market, .x))
 
-rally_market_data <- 1:nrow(rally_market) %>% map(~get_market_data(rally_market, .x))
+rally_market_data <- 
+  1:nrow(rally_market) %>% 
+  map(~get_market_data(rally_market, .x))
 
-normal_market_data <- 1:nrow(normal_market) %>% map(~get_market_data(normal_market, .x))
+normal_market_data <- 
+  1:nrow(normal_market) %>% 
+  map(~get_market_data(normal_market, .x))
 
 #Calculating Covariance matrix using the fitHeavyTail method
 calc_cov <- function(df, i){
@@ -403,29 +439,47 @@ calc_cov <- function(df, i){
         fitHeavyTail::fit_mvt() %>% .$cov
 }
 
-stressed_market_cov <- 1:length(stressed_market_data) %>% map(~calc_cov(stressed_market_data, .x))
+stressed_market_cov <- 
+  1:length(stressed_market_data) %>% 
+  map(~calc_cov(stressed_market_data, .x))
 
-rally_market_cov <- 1:length(rally_market_data) %>% map(~calc_cov(rally_market_data, .x))
+rally_market_cov <- 
+  1:length(rally_market_data) %>% 
+  map(~calc_cov(rally_market_data, .x))
 
-normal_market_cov <- 1:length(normal_market_data) %>% map(~calc_cov(normal_market_data, .x))
+normal_market_cov <- 
+  1:length(normal_market_data) %>% 
+  map(~calc_cov(normal_market_data, .x))
 
-#Joining and saving datasets
-#Called Labelled training data because it will be used to train CorGAN at a later stage
-labeled_training_data <- list(stressed_market = stressed_market_corr,
-                              rally_market = rally_market_corr,
-                              normal_market = normal_market_corr)
-save(labeled_training_data, file = "data/labeled_training_data.Rda")
+# Creating and saving a data frame of covariance matrices.
+cov_mats <- list(cov_normal = normal_market_cov,
+                  cov_stressed = stressed_market_cov,
+                  cov_rally = rally_market_cov)
+save(cov_mats, file = "data/cov_mats.Rda")
+
+# Creating and saving a data frame of correlation matrices.
+cor_mats <- 
+  list(
+    cor_normal = 1:length(normal_market_cov) %>% 
+                       map(~cov2cor(normal_market_cov[[.x]])),
+    cor_stressed = 1:length(stressed_market_cov) %>% 
+                       map(~cov2cor(stressed_market_cov[[.x]])),
+    cor_rally = 1:length(rally_market_cov) %>% 
+                       map(~cov2cor(rally_market_cov[[.x]]))
+  )
+save(cor_mats, file = "data/cor_mats.Rda")
+
 
 #------------------------------------------
 #Now to generate unlabelled training data
-#Hence why sharp = FALSE in gen_random_port
+#Hence why sharp = FALSE in gen_random_port.
+# This section has been scrapped for now;
+# corrgan may only be implemented at a later stage
 #------------------------------------------
-
-plan(multiprocess)
 training_data_indx <-
-    1:10000 %>% future_map(~gen_random_port(dim = 50, sharp = FALSE), .progress = TRUE) %>% reduce(bind_rows)
+    1:500 %>% map_dfr(~gen_random_port(dim = 50, sharp = FALSE))
 
-market_data <- 1:nrow(training_data) %>% future_map(~get_market_data(training_data, .x), .progress = TRUE)
+market_data <- 1:nrow(training_data) %>% map(~get_market_data(training_data, .x))
 
 training_data <- 1:length(market_data) %>% map(~calc_cor(market_data, .x))
 
@@ -448,19 +502,18 @@ matrices before being plotted.
 
 #### Elliptal copulas
 
-Elliptal copulas such as the Gaussian and the student t copulas, allow
-us to specify a correlation matrix before randomly selecting
-observations from the multivariate distribution. Doing so allows one to
-produce random draws of uniformly distributed variables, that contain
-the correlation structure and joint distribution specified by the
-copula. The chunk of code below demonstrates this functionality.
+the Gaussian and t Elliptal copulas allow us to specify a correlation
+matrix before randomly selecting observations from the multivariate
+distribution. Doing so allows one to produce random draws of uniformly
+distributed variables that adhere to the user specified correlation
+structure. The chunk of code below demonstrates this functionality.
 
 ``` r
 #loading copula package; already loaded
 # pacman::p_load(copula)
 
 #generating toy corr matrix
-corr <- gen_corr(D = 50, Clusters = "overlapping", Num_Layers = 3, Num_Clusters = c(10, 5, 2))
+corr <- gen_corr(D = 50, clusters = "overlapping", num_layers = 3, num_clusters = c(10, 5, 2))
 
 #generating normal and student t copula objects   
 Ncop <- ellipCopula(family = "normal", dispstr = "un", param = P2p(corr), dim = 50)
@@ -497,14 +550,14 @@ p_load(printr)
 summary(rn)
 ```
 
-|     | V1               | V2               | V3                | V4               | V5                | V6               | V7               | V8               | V9              | V10              | V11              | V12              | V13              | V14               | V15              | V16              | V17              | V18               | V19               | V20               | V21               | V22               | V23               | V24              | V25              | V26              | V27              | V28             | V29              | V30              | V31              | V32             | V33             | V34               | V35              | V36               | V37              | V38              | V39              | V40              | V41              | V42              | V43              | V44            | V45              | V46              | V47             | V48              | V49              | V50             |
-|:----|:-----------------|:-----------------|:------------------|:-----------------|:------------------|:-----------------|:-----------------|:-----------------|:----------------|:-----------------|:-----------------|:-----------------|:-----------------|:------------------|:-----------------|:-----------------|:-----------------|:------------------|:------------------|:------------------|:------------------|:------------------|:------------------|:-----------------|:-----------------|:-----------------|:-----------------|:----------------|:-----------------|:-----------------|:-----------------|:----------------|:----------------|:------------------|:-----------------|:------------------|:-----------------|:-----------------|:-----------------|:-----------------|:-----------------|:-----------------|:-----------------|:---------------|:-----------------|:-----------------|:----------------|:-----------------|:-----------------|:----------------|
-|     | Min. :0.002417   | Min. :0.005565   | Min. :0.0009219   | Min. :0.001001   | Min. :0.0006711   | Min. :0.005638   | Min. :0.001337   | Min. :0.002675   | Min. :0.01156   | Min. :0.003375   | Min. :0.001626   | Min. :0.008672   | Min. :0.003057   | Min. :0.0004456   | Min. :0.001072   | Min. :0.001822   | Min. :0.002524   | Min. :0.0000139   | Min. :0.0008095   | Min. :0.0000246   | Min. :0.0001499   | Min. :0.0004347   | Min. :0.0004949   | Min. :0.002537   | Min. :0.001079   | Min. :0.002634   | Min. :0.005403   | Min. :0.00307   | Min. :0.006311   | Min. :0.001356   | Min. :0.007724   | Min. :0.01083   | Min. :0.00537   | Min. :0.0006319   | Min. :0.002486   | Min. :0.0007265   | Min. :0.003088   | Min. :0.003377   | Min. :0.001644   | Min. :0.006168   | Min. :0.004531   | Min. :0.003745   | Min. :0.007435   | Min. :0.0148   | Min. :0.002272   | Min. :0.002065   | Min. :0.00798   | Min. :0.005286   | Min. :0.003094   | Min. :0.00406   |
-|     | 1st Qu.:0.286838 | 1st Qu.:0.226511 | 1st Qu.:0.2760729 | 1st Qu.:0.274757 | 1st Qu.:0.2614552 | 1st Qu.:0.277023 | 1st Qu.:0.291194 | 1st Qu.:0.291985 | 1st Qu.:0.28274 | 1st Qu.:0.285973 | 1st Qu.:0.293669 | 1st Qu.:0.292988 | 1st Qu.:0.271446 | 1st Qu.:0.2724606 | 1st Qu.:0.252156 | 1st Qu.:0.254037 | 1st Qu.:0.252912 | 1st Qu.:0.2488540 | 1st Qu.:0.2637890 | 1st Qu.:0.2675771 | 1st Qu.:0.2539192 | 1st Qu.:0.2549168 | 1st Qu.:0.2930984 | 1st Qu.:0.255816 | 1st Qu.:0.230063 | 1st Qu.:0.234979 | 1st Qu.:0.254117 | 1st Qu.:0.22966 | 1st Qu.:0.224826 | 1st Qu.:0.222225 | 1st Qu.:0.210550 | 1st Qu.:0.26180 | 1st Qu.:0.22622 | 1st Qu.:0.2201802 | 1st Qu.:0.195653 | 1st Qu.:0.2502642 | 1st Qu.:0.226158 | 1st Qu.:0.268318 | 1st Qu.:0.233023 | 1st Qu.:0.267575 | 1st Qu.:0.238939 | 1st Qu.:0.234845 | 1st Qu.:0.248722 | 1st Qu.:0.2334 | 1st Qu.:0.234968 | 1st Qu.:0.195520 | 1st Qu.:0.25688 | 1st Qu.:0.199734 | 1st Qu.:0.226031 | 1st Qu.:0.22064 |
-|     | Median :0.530895 | Median :0.543652 | Median :0.5572246 | Median :0.545331 | Median :0.5527855 | Median :0.528695 | Median :0.555045 | Median :0.555540 | Median :0.52578 | Median :0.502825 | Median :0.516487 | Median :0.528400 | Median :0.537787 | Median :0.5298672 | Median :0.520758 | Median :0.493532 | Median :0.533530 | Median :0.5105239 | Median :0.5588053 | Median :0.5103087 | Median :0.4836986 | Median :0.4862387 | Median :0.4845837 | Median :0.512925 | Median :0.479535 | Median :0.536998 | Median :0.541833 | Median :0.49401 | Median :0.542268 | Median :0.523393 | Median :0.511514 | Median :0.45988 | Median :0.46227 | Median :0.4417036 | Median :0.456460 | Median :0.4744171 | Median :0.478289 | Median :0.468110 | Median :0.477771 | Median :0.501182 | Median :0.478716 | Median :0.484697 | Median :0.493364 | Median :0.4926 | Median :0.461544 | Median :0.482004 | Median :0.44144 | Median :0.463329 | Median :0.451422 | Median :0.46530 |
-|     | Mean :0.515666   | Mean :0.510914   | Mean :0.5193490   | Mean :0.525184   | Mean :0.5264189   | Mean :0.518365   | Mean :0.524182   | Mean :0.528716   | Mean :0.51880   | Mean :0.512714   | Mean :0.525811   | Mean :0.521555   | Mean :0.515584   | Mean :0.5267204   | Mean :0.505678   | Mean :0.502570   | Mean :0.513133   | Mean :0.5045378   | Mean :0.5192894   | Mean :0.5121117   | Mean :0.4964719   | Mean :0.4933847   | Mean :0.5055127   | Mean :0.502838   | Mean :0.483077   | Mean :0.515579   | Mean :0.522535   | Mean :0.49132   | Mean :0.505707   | Mean :0.497944   | Mean :0.485006   | Mean :0.47621   | Mean :0.46941   | Mean :0.4702565   | Mean :0.468226   | Mean :0.4969280   | Mean :0.484522   | Mean :0.491097   | Mean :0.493590   | Mean :0.497500   | Mean :0.482241   | Mean :0.482556   | Mean :0.495090   | Mean :0.4919   | Mean :0.480102   | Mean :0.467015   | Mean :0.47221   | Mean :0.468556   | Mean :0.476636   | Mean :0.46363   |
-|     | 3rd Qu.:0.756606 | 3rd Qu.:0.761444 | 3rd Qu.:0.7617946 | 3rd Qu.:0.774246 | 3rd Qu.:0.7742726 | 3rd Qu.:0.768384 | 3rd Qu.:0.753609 | 3rd Qu.:0.766380 | 3rd Qu.:0.74778 | 3rd Qu.:0.761267 | 3rd Qu.:0.768410 | 3rd Qu.:0.770332 | 3rd Qu.:0.757147 | 3rd Qu.:0.7670497 | 3rd Qu.:0.762332 | 3rd Qu.:0.723836 | 3rd Qu.:0.764907 | 3rd Qu.:0.7642194 | 3rd Qu.:0.7834643 | 3rd Qu.:0.7725831 | 3rd Qu.:0.7512036 | 3rd Qu.:0.7374700 | 3rd Qu.:0.7271545 | 3rd Qu.:0.751764 | 3rd Qu.:0.722258 | 3rd Qu.:0.781057 | 3rd Qu.:0.790767 | 3rd Qu.:0.76441 | 3rd Qu.:0.807557 | 3rd Qu.:0.741810 | 3rd Qu.:0.721842 | 3rd Qu.:0.69502 | 3rd Qu.:0.68900 | 3rd Qu.:0.7267233 | 3rd Qu.:0.711757 | 3rd Qu.:0.7581372 | 3rd Qu.:0.749092 | 3rd Qu.:0.726469 | 3rd Qu.:0.737029 | 3rd Qu.:0.725033 | 3rd Qu.:0.727231 | 3rd Qu.:0.701389 | 3rd Qu.:0.735653 | 3rd Qu.:0.7359 | 3rd Qu.:0.727663 | 3rd Qu.:0.720063 | 3rd Qu.:0.70446 | 3rd Qu.:0.700311 | 3rd Qu.:0.717973 | 3rd Qu.:0.69815 |
-|     | Max. :0.992001   | Max. :0.999428   | Max. :0.9973961   | Max. :0.991734   | Max. :0.9928435   | Max. :0.996499   | Max. :0.998124   | Max. :0.995534   | Max. :0.99730   | Max. :0.997638   | Max. :0.997327   | Max. :0.997453   | Max. :0.991751   | Max. :0.9965735   | Max. :0.992223   | Max. :0.995167   | Max. :0.998288   | Max. :0.9942396   | Max. :0.9774322   | Max. :0.9915965   | Max. :0.9985506   | Max. :0.9994188   | Max. :0.9986069   | Max. :0.998946   | Max. :0.998121   | Max. :0.999316   | Max. :0.994653   | Max. :0.99578   | Max. :0.995174   | Max. :0.992294   | Max. :0.993691   | Max. :0.99921   | Max. :0.99700   | Max. :0.9941543   | Max. :0.992685   | Max. :0.9828719   | Max. :0.995858   | Max. :0.999045   | Max. :0.998260   | Max. :0.993691   | Max. :0.997287   | Max. :0.992379   | Max. :0.998853   | Max. :0.9973   | Max. :0.999358   | Max. :0.987743   | Max. :0.99752   | Max. :0.996595   | Max. :0.997653   | Max. :0.99755   |
+|  | V1               | V2               | V3               | V4               | V5               | V6               | V7                | V8               | V9               | V10              | V11               | V12             | V13               | V14               | V15               | V16              | V17              | V18               | V19              | V20               | V21               | V22               | V23               | V24             | V25              | V26              | V27              | V28              | V29              | V30              | V31              | V32              | V33              | V34               | V35              | V36              | V37              | V38              | V39              | V40              | V41              | V42              | V43              | V44             | V45              | V46              | V47              | V48              | V49              | V50              |
+| :- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :---------------- | :--------------- | :--------------- | :--------------- | :---------------- | :-------------- | :---------------- | :---------------- | :---------------- | :--------------- | :--------------- | :---------------- | :--------------- | :---------------- | :---------------- | :---------------- | :---------------- | :-------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :---------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :-------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- |
+|  | Min. :0.007098   | Min. :0.003022   | Min. :0.001259   | Min. :0.001032   | Min. :0.001339   | Min. :0.008517   | Min. :0.0000196   | Min. :0.005243   | Min. :0.002634   | Min. :0.006741   | Min. :0.0002914   | Min. :0.01184   | Min. :0.0008023   | Min. :0.0000349   | Min. :0.0000142   | Min. :0.002799   | Min. :0.004945   | Min. :0.0000175   | Min. :0.003786   | Min. :0.0000386   | Min. :0.0001844   | Min. :0.0007961   | Min. :0.0009481   | Min. :0.00299   | Min. :0.002662   | Min. :0.004609   | Min. :0.003124   | Min. :0.001632   | Min. :0.004241   | Min. :0.001585   | Min. :0.002885   | Min. :0.003994   | Min. :0.003331   | Min. :0.0009928   | Min. :0.002219   | Min. :0.001089   | Min. :0.005954   | Min. :0.003879   | Min. :0.003733   | Min. :0.007477   | Min. :0.002481   | Min. :0.004893   | Min. :0.005576   | Min. :0.02025   | Min. :0.002443   | Min. :0.005205   | Min. :0.001957   | Min. :0.003112   | Min. :0.001037   | Min. :0.005138   |
+|  | 1st Qu.:0.295501 | 1st Qu.:0.234431 | 1st Qu.:0.271546 | 1st Qu.:0.300009 | 1st Qu.:0.278818 | 1st Qu.:0.248640 | 1st Qu.:0.3049631 | 1st Qu.:0.332494 | 1st Qu.:0.243788 | 1st Qu.:0.309240 | 1st Qu.:0.2776770 | 1st Qu.:0.27823 | 1st Qu.:0.3168528 | 1st Qu.:0.2791146 | 1st Qu.:0.2366060 | 1st Qu.:0.258238 | 1st Qu.:0.275312 | 1st Qu.:0.2638479 | 1st Qu.:0.297065 | 1st Qu.:0.2632021 | 1st Qu.:0.2555626 | 1st Qu.:0.2354916 | 1st Qu.:0.2833655 | 1st Qu.:0.25460 | 1st Qu.:0.251036 | 1st Qu.:0.249656 | 1st Qu.:0.271992 | 1st Qu.:0.204907 | 1st Qu.:0.211654 | 1st Qu.:0.206260 | 1st Qu.:0.248430 | 1st Qu.:0.264662 | 1st Qu.:0.248683 | 1st Qu.:0.2386767 | 1st Qu.:0.243765 | 1st Qu.:0.231889 | 1st Qu.:0.244227 | 1st Qu.:0.250977 | 1st Qu.:0.229075 | 1st Qu.:0.237658 | 1st Qu.:0.197966 | 1st Qu.:0.248643 | 1st Qu.:0.253502 | 1st Qu.:0.22658 | 1st Qu.:0.234969 | 1st Qu.:0.210509 | 1st Qu.:0.268128 | 1st Qu.:0.228985 | 1st Qu.:0.221410 | 1st Qu.:0.201689 |
+|  | Median :0.531288 | Median :0.537359 | Median :0.524745 | Median :0.530231 | Median :0.532713 | Median :0.535569 | Median :0.5195331 | Median :0.558365 | Median :0.516122 | Median :0.466524 | Median :0.5125215 | Median :0.54756 | Median :0.5012081 | Median :0.5391057 | Median :0.4959909 | Median :0.503865 | Median :0.522426 | Median :0.5273840 | Median :0.528557 | Median :0.5216921 | Median :0.4966922 | Median :0.4823789 | Median :0.5206706 | Median :0.51662 | Median :0.465475 | Median :0.508347 | Median :0.507671 | Median :0.470082 | Median :0.473701 | Median :0.489791 | Median :0.484261 | Median :0.470341 | Median :0.461106 | Median :0.4635581 | Median :0.462741 | Median :0.468923 | Median :0.454717 | Median :0.464861 | Median :0.474449 | Median :0.485156 | Median :0.413951 | Median :0.454282 | Median :0.467252 | Median :0.49336 | Median :0.458083 | Median :0.463587 | Median :0.479387 | Median :0.455441 | Median :0.491378 | Median :0.449215 |
+|  | Mean :0.513770   | Mean :0.508038   | Mean :0.513361   | Mean :0.526467   | Mean :0.526355   | Mean :0.516185   | Mean :0.5222495   | Mean :0.532535   | Mean :0.514388   | Mean :0.501104   | Mean :0.5205139   | Mean :0.51675   | Mean :0.5086903   | Mean :0.5248778   | Mean :0.4945815   | Mean :0.506240   | Mean :0.516782   | Mean :0.5065281   | Mean :0.524385   | Mean :0.5176175   | Mean :0.5001963   | Mean :0.4960548   | Mean :0.5142493   | Mean :0.50909   | Mean :0.481280   | Mean :0.509427   | Mean :0.519574   | Mean :0.475991   | Mean :0.493095   | Mean :0.485602   | Mean :0.495493   | Mean :0.487197   | Mean :0.475711   | Mean :0.4764815   | Mean :0.477529   | Mean :0.489937   | Mean :0.473622   | Mean :0.482252   | Mean :0.483457   | Mean :0.489008   | Mean :0.469082   | Mean :0.473770   | Mean :0.491785   | Mean :0.48662   | Mean :0.472151   | Mean :0.471089   | Mean :0.487564   | Mean :0.477764   | Mean :0.493814   | Mean :0.470146   |
+|  | 3rd Qu.:0.754066 | 3rd Qu.:0.756944 | 3rd Qu.:0.776006 | 3rd Qu.:0.763817 | 3rd Qu.:0.779601 | 3rd Qu.:0.758171 | 3rd Qu.:0.7424127 | 3rd Qu.:0.763789 | 3rd Qu.:0.767240 | 3rd Qu.:0.740969 | 3rd Qu.:0.7936023 | 3rd Qu.:0.76245 | 3rd Qu.:0.7543526 | 3rd Qu.:0.7835063 | 3rd Qu.:0.7606892 | 3rd Qu.:0.757275 | 3rd Qu.:0.751687 | 3rd Qu.:0.7301500 | 3rd Qu.:0.776602 | 3rd Qu.:0.7985304 | 3rd Qu.:0.7616902 | 3rd Qu.:0.7620283 | 3rd Qu.:0.7606433 | 3rd Qu.:0.75200 | 3rd Qu.:0.726562 | 3rd Qu.:0.770438 | 3rd Qu.:0.771216 | 3rd Qu.:0.722104 | 3rd Qu.:0.789659 | 3rd Qu.:0.717873 | 3rd Qu.:0.746415 | 3rd Qu.:0.692572 | 3rd Qu.:0.709877 | 3rd Qu.:0.7188877 | 3rd Qu.:0.735197 | 3rd Qu.:0.745344 | 3rd Qu.:0.709402 | 3rd Qu.:0.710031 | 3rd Qu.:0.718005 | 3rd Qu.:0.718350 | 3rd Qu.:0.716769 | 3rd Qu.:0.700996 | 3rd Qu.:0.749123 | 3rd Qu.:0.71626 | 3rd Qu.:0.710849 | 3rd Qu.:0.706304 | 3rd Qu.:0.712982 | 3rd Qu.:0.749284 | 3rd Qu.:0.746672 | 3rd Qu.:0.711019 |
+|  | Max. :0.994789   | Max. :0.998698   | Max. :0.998652   | Max. :0.997828   | Max. :0.995730   | Max. :0.993855   | Max. :0.9955389   | Max. :0.996432   | Max. :0.994969   | Max. :0.996501   | Max. :0.9954856   | Max. :0.99577   | Max. :0.9851690   | Max. :0.9954198   | Max. :0.9903958   | Max. :0.995059   | Max. :0.996812   | Max. :0.9928489   | Max. :0.994940   | Max. :0.9915388   | Max. :0.9985925   | Max. :0.9996857   | Max. :0.9950239   | Max. :0.99940   | Max. :0.989287   | Max. :0.999517   | Max. :0.991402   | Max. :0.994119   | Max. :0.996924   | Max. :0.989847   | Max. :0.996223   | Max. :0.999385   | Max. :0.997310   | Max. :0.9928371   | Max. :0.996088   | Max. :0.988939   | Max. :0.998540   | Max. :0.997685   | Max. :0.996754   | Max. :0.989053   | Max. :0.996750   | Max. :0.991693   | Max. :0.998723   | Max. :0.99608   | Max. :0.999002   | Max. :0.997470   | Max. :0.999760   | Max. :0.997560   | Max. :0.999501   | Max. :0.996479   |
 
 ``` r
 p1
@@ -525,10 +578,10 @@ p1
 ### Archimedean Copulas
 
 Unfortunately, Elliptal copulas cannot be calibrated to exhibit dynamic
-correlations at different points of the multivariate distribution (i.e
-dynamic correlations or left-tail dependence). Therefore, in this
-section we examine some properties of Archimedean copulas which do
-exhibit this characteristic.
+correlations (i.e left-tail dependence). And Archimedean copulas don’t
+allow us to stipulate their surrelation structure, that is not via a
+correlation matrix. Therefore, in this section we examine some
+properties of Archimedean copulas which do exhibit this characteristic.
 
 Archimedean copulas such as the Clayton, Frank, Gumbel and Joe exhibit
 higher levels of dependence at the tails of the multivariate
@@ -536,14 +589,14 @@ distribution. In this section we will examine the Clayton copula due to
 it exhibiting enhanced left-tail dependencies. Other copulas have been
 examined, but the Clayton copula is currently the only Archimedean
 copula, in the copula package, that allows random sampling from
-multivariate distributions with Dim &gt; 2. Additionally, the other
+multivariate distributions with Dim \> 2. Additionally, the other
 copulas have to be rotated 180 degrees to exhibit left-tail dependence
 (since they naturally posses right-tail dependence). This rotation step
-can be quite time consuming in higher dimensions. Therefore, the choice
-to focus on only using the Clayton copula was largely due to practical
-concerns raised when experimenting with alternative copulas. Therefore,
-in future work it would be beneficial to explore alternative high
-dimensional, left-tail copulas.
+can be quite time consuming and often fails in higher dimensions.
+Therefore, the choice to focus on only using the Clayton copula was
+largely due to practical concerns raised when tinkering with alternative
+copulas. Therefore, in future work it would be beneficial to explore
+alternative high dimensional, left-tail copulas.
 
 ``` r
 # first look at at dim=2 to get understanding of what parameter tning does
@@ -646,20 +699,21 @@ rCopula(1000, galcop) %>% plot()
 
 ## Hybrid Copulas
 
-Tawn’s (1988) Theorem: Shows that a copula is a convex set and every
+Tawn’s (1988) Theorem: States that a copula is a convex set and every
 convex combination of existing copula functions is again a copula.
 
-Thus, if
-![C\_1(U\_N)](https://latex.codecogs.com/png.latex?C_1%28U_N%29 "C_1(U_N)")
-and
-![C\_2(U\_N)](https://latex.codecogs.com/png.latex?C_2%28U_N%29 "C_2(U_N)")
-are multivariate copula’s of dimension D and
+Thus, if ![C\_1(U\_N)](https://latex.codecogs.com/png.latex?C_1%28U_N%29
+"C_1(U_N)") and
+![C\_2(U\_N)](https://latex.codecogs.com/png.latex?C_2%28U_N%29
+"C_2(U_N)") are multivariate copula’s of dimension D and
 ![w](https://latex.codecogs.com/png.latex?w "w") is a weighting variable
 between 0 and 1, then
 
 <center>
 
-![C(U\_N)=w.C\_1(U\_N)+(1-w)C\_2(U\_N)](https://latex.codecogs.com/png.latex?C%28U_N%29%3Dw.C_1%28U_N%29%2B%281-w%29C_2%28U_N%29 "C(U_N)=w.C_1(U_N)+(1-w)C_2(U_N)")
+  
+![C(U\_N)=w.C\_1(U\_N)+(1-w)C\_2(U\_N)](https://latex.codecogs.com/png.latex?C%28U_N%29%3Dw.C_1%28U_N%29%2B%281-w%29C_2%28U_N%29
+"C(U_N)=w.C_1(U_N)+(1-w)C_2(U_N)")  
 
 </center>
 
@@ -691,34 +745,40 @@ Due to convenience, it has become standard to use the normal, or
 student-t distribution when simulating asset returns.
 
 However, after reading up on numerous possible marginal distributions, I
-decided that the the Skewed generalized t distribution is the most
-appropriate as it allows for the most flexibility. In fact, the SGT
+decided that the the Skewed generalized t distribution is a valuable
+alternative as it allows for the most flexibility. In fact, the SGT
 distribution nests 12 common probability distribution functions (pdf).
 The tree diagram below indicates how one can set the SGT parameters to
 achieve the desired pdf.
 
-For ease of use the functions will also include arguments to induce the
-marginals to be uniformly, normal and student-t distributed.
+MCmarkets functions will also include arguments to induce the marginals
+to be uniformly, normal and student-t distributed.
 
 ![Plot 5.](plots/SGTtree.png)
 
 ### The skewed generalizd t distribution with different parameters
 
 The code below demonstrates how the p, q and
-![\\lambda](https://latex.codecogs.com/png.latex?%5Clambda "\lambda")
+![\\lambda](https://latex.codecogs.com/png.latex?%5Clambda "\\lambda")
 functions influence the SGT distribution.
 <img src="README_files/figure-gfm/unnamed-chunk-2-1.png" width="80%" height="80%" /><img src="README_files/figure-gfm/unnamed-chunk-2-2.png" width="80%" height="80%" /><img src="README_files/figure-gfm/unnamed-chunk-2-3.png" width="80%" height="80%" />
 
-### Calibrating the SGT with Architypal Low, Medium and High Risk Assets
+### Calibrating the SGT with Architypal Low, Medium and High Risk Assets.
+
+At this stage, the infomation gathered in this section has not yet been
+incorporated into MCmarket. At a later stage the estimated parameters in
+this section will be used in the MCmarkets presets. These will allow non
+technical users to simulate predefined market types with no knowledge of
+the underlying statistical theory.
 
 ##### This section will most likely be scraped, due to the sensitivity of the parameters.
 
-We now look at data on each share in the S&P500 over the last 90 months.
-The shares with the top 5% highest annualized SD’s are used to model an
-archetypal high risk asset, shares with the 5% lowest annualized SD’s
-are used to model an archetypal low risk asset, while shares with SD
-between the 45th and 55th percentile are used to model the medium risk
-asset.
+We now look at data on each share in the S\&P500 over the last 90
+months. The shares with the top 5% highest annualized SD’s are used to
+model an archetypal high risk asset, shares with the 5% lowest
+annualized SD’s are used to model an archetypal low risk asset, while
+shares with SD between the 45th and 55th percentile are used to model
+the medium risk asset.
 
 ``` r
 load("data/SNP_returns.Rda")
@@ -756,280 +816,10 @@ medium_vol <-
 
 #### Estimating SGT
 
--   See “code/filter\_resid.R” to see how filtered residuals (garch.Rda)
+  - See “code/filter\_resid.R” to see how filtered residuals (garch.Rda)
     was obtained.
--   See “code/estimate\_sgt.R” to see how the parameters of the sgt were
+  - See “code/estimate\_sgt.R” to see how the parameters of the sgt were
     estimated.
-
-``` r
-load("data/garch.Rda")
-
-estimate_sgt <- function(df, start = NULL){
-  x <- df[[1]]
-  X.f <- X ~ x
-  if(is.null(start)) start <- list(mu = 0, sigma = 0.03, lambda = -0.02, p = 1.5, q = 2.25)
-  result <- sgt.mle(X.f = X.f, start = start, finalHessian = "BHHH")
-  summary(result)
-}
-
-# High Vol stocks
-df <- resid_high_vol %>% 
-  dplyr::mutate(date = unique(SNP_returns$date)) %>% 
-  gather(symbol, return, -date) %>% 
-  dplyr::filter(date>first(date)) %>% 
-  select(return)
-
-#start <- list(mu = -0.0001957195, sigma = 0.04217965, lambda = -0.0062424590, p= 1.452239, q = 2.058042)
- # sgt_high_vol <- estimate_sgt(df, start = start)
- # save(sgt_high_vol, file = "data/sgt_high_vol.Rda")
-load(file = "data/sgt_high_vol.Rda")
-
-# Low Vol stocks
-df <- resid_low_vol %>% 
-  mutate(date = unique(SNP_returns$date)) %>% 
-  gather(symbol, return, -date) %>% 
-  dplyr::filter(date>first(date)) %>% 
-  select(return)
-
- # sgt_low_vol <- estimate_sgt(df)
- # save(sgt_low_vol, file = "data/sgt_low_vol.Rda")
-load(file = "data/sgt_low_vol.Rda")
-
-
-#Medium Vol stocks
-df <- resid_medium_vol %>% 
-  mutate(date = unique(SNP_returns$date)) %>% 
-  gather(symbol, return, -date) %>% 
-  dplyr::filter(date>first(date)) %>% 
-  select(return)
-
- # sgt_medium_vol <- estimate_sgt(df)
- # save(sgt_medium_vol, file = "data/sgt_medium_vol.Rda")
-load(file = "data/sgt_medium_vol.Rda")
-```
-
-<img src="README_files/figure-gfm/plotting marginal distributions-1.png" width="80%" height="80%" /><img src="README_files/figure-gfm/plotting marginal distributions-2.png" width="80%" height="80%" /><img src="README_files/figure-gfm/plotting marginal distributions-3.png" width="80%" height="80%" />
-
-## Simulating Innovations
-
-This section introduces the sim\_inno function, which is designed to
-carry out the first two steps of this Monte Carlo framework.
-
-### sim\_inno
-
-The function below generates randomly distributed numbers from a hybrid
-t and/or clayton copula. Need to think about how to calibrate df and
-claycop parameters.
-
-Arguments
-
--   Corr this is a correlation matrix used as the parameter for the
-    elliptical copula
--   elliptal\_copula family name of elliptal copula. Default is to use
-    “t”, but “norm” is also accepted
--   df\_ellip a positive integer specifying the degrees of freedom for
-    the student t elliptical copula. Only required when using
-    elliptal\_copula = “t”.
--   left\_cop\_param a positive integer specifying the parameter of the
-    **Clayton** copula.
--   left\_cop\_weight a value between 0 and 1 corresponding to the
-    weight assigned to the left copula, when generating random draws
-    from a hybrid copula.
--   marginal\_dist a character string specifying the marginal
-    distribution of the simulated data. Must be “norm” or “t”, with the
-    default generating uniformly distributed marginals.
--   df\_marginal\_dist a positive integer specifying the degrees of
-    freedom parameter of the “t” distributed marginals.
--   marginal\_dist\_model a list containing the parameters of the
-    marginal distribution.
-
-See code/sim\_inno.R for the actual function
-
-``` r
-sim_inno <- function(corr,
-                     k = 252,
-                     mv_dist = "t",
-                     mv_df = 3,
-                     left_cop_param = 5,
-                     left_cop_weight = 0,
-                     marginal_dist = "norm",
-                     marginal_dist_model = NULL) {
-
-    N <- nrow(corr)
-    k <- k + 5   # extra room for sim_garch to use later
-    Cor <- P2p(corr)
-
-    # Specifying  Copulas
-    # elliptical
-    if(!(mv_dist %in% c("norm", "t"))) stop("Please supply a valid argument for mv_dist")
-    else
-        if (mv_dist == "t") {
-            if (is.null(mv_df)) stop('Please supply a valid degrees of freedom parameter when using mv_dist = "t".')
-            Ecop <- ellipCopula(family = "t",
-                                dispstr = "un",
-                                df = mv_df,
-                                param = Cor,
-                                dim = N)
-    } else
-        if (mv_dist == "norm") {
-            Ecop <- ellipCopula(family = "normal", dispstr = "un", param = Cor, dim = N)
-        }
-
-    # Left-cop (Archemedian copula)
-    if (left_cop_weight < 0|left_cop_weight > 1) stop("Please provide a valid left_cop_weight between 0 and 1")
-    
-    if (left_cop_weight != 0) {
-        Acop <- archmCopula(family = "clayton", param = left_cop_param, dim = N)
-    }
-
-    #generating random (uniformly distributed) draws from hybrid copula's
-    if (left_cop_weight == 0) {
-        data <- rCopula(k, Ecop)
-    } else
-        if(left_cop_weight == 1) {
-            data <- rCopula(k, Acop)
-        } else
-            data <- left_cop_weight*rCopula(k, Acop) + (1-left_cop_weight)*rCopula(k, Ecop)
-
-    #naming and converting data to tibble
-    colnames(data) <- glue::glue("Asset_{1:ncol(data)}")
-    data <- as_tibble(data)
-
-    if (marginal_dist == "unif") return(data)  # How to make function stop here?
-
-    #Converting Uniform marginal distributions to norm, t or sgt.
-    if (!(marginal_dist %in% c("norm", "t", "sgt", "unif"))) stop ("Please supply a valid marginal_dist argument")
-    if (marginal_dist == "norm") {
-        if (is.null(marginal_dist_model)) {
-            marginal_dist_model <- list(mu=0, sigma = 1)     #Should defaults move to the top?
-        }
-        data <- data %>% map_df(~qnorm(.x, 
-                                       mean = marginal_dist_model$mu,
-                                       sd = marginal_dist_model$sigma))
-        return(data)
-    } else
-        if (marginal_dist == "t") {
-            if (is.null(marginal_dist_model)) {
-                marginal_dist_model <- list(mu=0, df = 5)
-            }
-            data <- data %>%
-                map_df(~qt(.x, ncp = marginal_dist_model$mu, df = mv_df))
-            return(data)
-        } else
-            if (marginal_dist == "sgt") {
-                if (is.null(marginal_dist_model))
-                    stop ('Please supply a valid marginal_dist_model when using marginal_dist="sgt".')
-                else
-                    if (is.null(marginal_dist_model$mu)) {marginal_dist_model$mu <- 0}
-                    if (is.null(marginal_dist_model$sigma)) {marginal_dist_model$sigma <- 1}  # Do I need an else?? Seems like including it will not work
-                    if (is.null(marginal_dist_model$lambda)|
-                       is.null(marginal_dist_model$p)|
-                       is.null(marginal_dist_model$q)) stop('Please supply valid arguments for lambda, p and q when using marginal_dist = "sgt".')
-                        data <- data %>%
-                            map_df(~qsgt(.x, mu =  marginal_dist_model$mu,
-                                         sigma = marginal_dist_model$sigma,
-                                         lambda = marginal_dist_model$lambda,
-                                         p = marginal_dist_model$p,
-                                         q = marginal_dist_model$q,
-                                         mean.cent = TRUE))
-                        return(data)
-                }
-}
-```
-
-### Testing sim\_inno
-
-This code simply tests and demonstrates the functionality of sim\_inno.
-
-``` r
-# Sourcing function, loading data and setting seed
-source("code/sim_inno.R")
-source("code/gen_corr.R")
-load("data/sgt_low_vol.Rda")
-set.seed(872154)
-
-Corr <- gen_corr(D = 50, Clusters = "overlapping", Num_Layers = 3, Num_Clusters = c(10,5,2))
-Corr %>% ggcorrplot::ggcorrplot()
-```
-
-<img src="README_files/figure-gfm/sim_inno test-1.png" width="80%" height="80%" style="display: block; margin: auto auto auto 0;" />
-
-``` r
-# ----------------------------------------
-# Simulating data with marginal_dist="norm"
-# ----------------------------------------
-data_norm <- sim_inno(corr = Corr, 
-                 mv_dist = "t",
-                 mv_df = 4,
-                 left_cop_param = 5,
-                 left_cop_weight = 0.2,
-                 marginal_dist = "norm",
-                 marginal_dist_model = list(mu = 0, sigma = 0.02311859),
-                 k = 500)
-colnames(data_norm) <- glue::glue("V{1:ncol(data_norm)}")
-
-# ----------------------------------------
-# Simulating data with marginal_dist="sgt"
-# ----------------------------------------
-sgt_pars <- as.list(sgt_low_vol$estimate)
-data_sgt <- sim_inno(corr = Corr, 
-                 mv_dist = "t",
-                 mv_df = 4,
-                 left_cop_param = 10,
-                 left_cop_weight = 0,
-                 marginal_dist = "sgt",
-                 marginal_dist_model = sgt_pars,
-                 k = 500)
-colnames(data_sgt) <- glue::glue("V{1:ncol(data_sgt)}")
-
-# ------------------------
-# Plotting Simulated Data
-# ------------------------
-
-# First: Note how the correlation matrix has been maintained
-data_sgt %>% fitHeavyTail::fit_mvt() %>% .$cov %>% cov2cor() %>% ggcorrplot::ggcorrplot()
-```
-
-<img src="README_files/figure-gfm/sim_inno test-2.png" width="80%" height="80%" style="display: block; margin: auto auto auto 0;" />
-
-``` r
-#-------------------
-# Plotting SGT data
-# Plotting V1 vs the variables in the first, second and third cluster layers.
-#-------------------
-data_sgt %>% gather(key, value, -V1) %>% 
-    mutate(Cluster = case_when( key %in% c("V2","V3","V4","V5") ~ "First Cluster",
-                                key %in% c("V6","V7","V8","V9","V10") ~ "Second Cluster",
-                                key %in% c("V11","V12","V13","V14","V15") ~ "Third Cluster")) %>% 
-    na.omit() %>% 
-    ggplot(aes(x = V1, y = value)) +
-    geom_point(alpha=0.4) +
-    geom_density_2d_filled(alpha = 0.7, bins = 10) +
-    facet_wrap(~Cluster, nrow = 3, 
-               scales = "free_y") +
-    theme_bw() +
-    labs(title = "2D Density plot of SGT Distributed Data")
-```
-
-<img src="README_files/figure-gfm/sim_inno test-3.png" width="80%" height="80%" style="display: block; margin: auto auto auto 0;" />
-
-``` r
-# Plotting Normally distributed data
-data_norm %>% gather(key, value, -V1) %>% 
-    mutate(Cluster = case_when( key %in% c("V2","V3","V4","V5") ~ "First Cluster",
-                                key %in% c("V6","V7","V8","V9","V10") ~ "Second Cluster",
-                                key %in% c("V11","V12","V13","V14","V15") ~ "Outside Cluster")) %>% 
-    na.omit() %>% 
-    ggplot(aes(x = V1, y = value)) +
-    geom_point(alpha=0.4) +
-    geom_density_2d_filled(alpha = 0.7, bins = 10) +
-    facet_wrap(~Cluster, nrow = 3, 
-               scales = "free_y") +
-    theme_bw() +
-    labs(title = "2D Density plot of Normally Distributed Data")
-```
-
-<img src="README_files/figure-gfm/sim_inno test-4.png" width="80%" height="80%" style="display: block; margin: auto auto auto 0;" />
 
 # Step 3: Introducing Volitility Persistence
 
@@ -1038,8 +828,8 @@ volatility persistence observed in real asset return series, hence why I
 refer to them as innovations.
 
 ``` r
-p1 <- ggAcf(data_sgt$V1) + theme_bw() + labs(title = "ACF of Innovations")
-p2 <- ggAcf(data_sgt$V1^2) + theme_bw() + labs(title = "ACF of Squared Innovations")
+p1 <- ggAcf(rnorm(200)) + theme_bw() + labs(title = "ACF of Innovations")
+p2 <- ggAcf(rnorm(200)^2) + theme_bw() + labs(title = "ACF of Squared Innovations")
 p <- p1 / p2 
 p + plot_annotation(title = "No Significant Persistence in Mean or Volatility")
 ```
@@ -1049,7 +839,7 @@ p + plot_annotation(title = "No Significant Persistence in Mean or Volatility")
 In this step I introduce autocorrelation and volatility using an
 ARMA(p,q) + APGARCH(q,p) model.
 
--   “The leptokurtosis, clustering volatility and leverage effects
+  - “The leptokurtosis, clustering volatility and leverage effects
     characteristics of financial time series justifies the GARCH
     modelling approach. The non-linear characteristic of the time series
     is used to check the Brownian motion and investigate into the
@@ -1067,23 +857,86 @@ GARCH process. Note that most of the code was re-purposed from fGarch’s
 garchspec and garchsim functions.
 
 ``` r
-sim_garch <- function(model= list(), innovations, simple = TRUE){
-    
-    #default parameters for garch model  
-    default <- list(omega = 1e-06, 
-                    alpha = 0.1,
-                    gamma = NULL, 
-                    beta = 0.8, 
-                    mu = 0,   #changed form NULL to 0
-                    ar = NULL, 
-                    ma = NULL, 
-                    delta = 2)
-    
-    default[names(model)] <- model
-    model <- default   
-    
+#' @title sim_garch
+#' @description This function takes a vector of random numbers, referred to as innovations, and
+#' induces mean and variance persistence by inserting them into an ARMA(1,1) + APARCH(1,1) model.
+#' @param innovations a vector containing the random numbers/ the innovations of the
+#' ARIMA + GARCH process.
+#' @param omega a positive value defining the coefficient of the variance equation, default is 5e-04.
+#' @param gamma a value defining the APARCH leverage parameter in the variance equation. The default
+#' of 0, implies no leverage effect and therefore corresponds with the standard GARCH model.
+#' @param alpha a value defining the value of the autoregressive variance coefficient, default is 0.
+#' @param beta a value defining the variance coefficient, default is 0.
+#' @param mu  a value defining the mean, default is 0.
+#' @param ar  a value defining the autoregressive ARMA coefficient, default is 0.
+#' @param ma a value defining the moving average ARMA coefficient, default is 0.
+#' @param delta a strictly positive value the delta parameter of the APARCH model. The default is 2,
+#' which corresponds with the standard GARCH model.
+#' @param simple a logical parameter indicating if the output should be a simple vector containing just the
+#' resulting ARIMA + GARCH series, or if FALSE a three column dataframe containing z - the innovations, h - the
+#'  conditional variance and y - ARMA + APARCH series.
+#' @note  (1) It is suggested that the randomly distributed numbers be mean zero and standard
+#' deviation one, as these attributes can be set by the model argument.
+#'
+#' (2) For more information on the ARMA + APARCH parameters see:
+#'
+#' Ruppert, D. and Matteson, D.S., 2011. Statistics and data analysis for financial engineering (Vol. 13). New York: Springer.
+#'
+#'  @return if simple = TRUE a vector of the resulting ARMA + APARCH series, else if simple = FALSE a
+#' three column dataframe containing z - the innovations, h - the conditional variance and y - ARMA +
+#' APARCH series. Note the length of the resulting series will one observation less than that that of the innovations
+#' as ARMA(1,1) + APARCH(1,1) model effectively consumes this lag when producing its first value.
+#'
+#' @importFrom dplyr tibble
+#'
+#' @examples
+#'
+#' \dontrun{
+#'
+#' library(tidyverse)
+#'
+#' ### creating series of 501 innovations
+#' inno <-  rnorm(501)
+#'
+#' ### This produces a ARMA + APARCH series of length 500.
+#' GARCH <- sim_garch(inno,
+#'                    mu = 0.000002,
+#'                    omega = 0.00005,
+#'                    alpha = 0.098839,
+#'                    beta = 0.899506,
+#'                    ar = 0.063666,
+#'                    ma = NULL,
+#'                    gamma = 0.12194,
+#'                    delta = 1.85,
+#'                    simple = FALSE)
+#'
+#'  ### Visualising the resulting series
+#'  GARCH %>% mutate(period = 1:n()) %>%
+#'        gather(key, value, -period) %>%
+#'        ggplot() +
+#'        geom_line(aes(x = period, y = value, color = key)) +
+#'        facet_wrap(~key, scales = "free_y", ncol = 1)
+#'
+#' }
+#' @export
+
+sim_garch <- function(innovations,
+                      omega = NULL, alpha = NULL, gamma = NULL, beta = NULL,
+                      mu = NULL, ar = NULL, ma = NULL, delta = NULL,
+                      simple = TRUE) {
+
+    # Creating model list with defaults
+    model <- list(omega = ifelse(is.null(omega), 5e-04, omega),
+                  alpha = ifelse(is.null(alpha), 0, alpha),
+                  gamma = ifelse(is.null(gamma), 0, gamma),
+                  beta = ifelse(is.null(beta), 0, beta),
+                  mu = ifelse(is.null(mu), 0, mu),   #changed form NULL to 0
+                  ar = ifelse(is.null(ar), 0, ar),
+                  ma = ifelse(is.null(ma), 0, ma),
+                  delta = ifelse(is.null(delta), 2, delta))
+
     #obtaining parameters and lag orders from model object
-    mu <- model$mu 
+    mu <- model$mu
     ar <- model$ar
     ma <- model$ma
     omega <-  model$omega
@@ -1097,40 +950,38 @@ sim_garch <- function(model= list(), innovations, simple = TRUE){
     order.alpha <- length(alpha)
     order.beta <- length(beta)
     max.order <- max(order.ar, order.ma, order.alpha, order.beta)
-    n <- length(innovations) - 5
-    
-    if(max.order>5)stop("Please supply a volitility model with max order less than or equal to 5")
-    
+    n <- length(innovations) - 1
+
     #Generating innovations
     z_length <- n + max.order
-    z <- c(innovations)[1:z_length]  #must change this later
-    
-    h <- c(rep(model$omega/(1 - sum(model$alpha) - sum(model$beta)), 
-               times = max.order), rep(NA, n))    #sd's
-    
-    y <- c(rep(model$mu/(1 - sum(model$ar)), times = max.order), rep(NA, n))  #garch simulations
+    z <- c(innovations)[(2-max.order):length(innovations)]  #z is the vector of random innovation
+
+    h <- c(rep(model$omega/(1 - sum(model$alpha) - sum(model$beta)),
+               times = max.order), rep(NA, n))    #h is the conditional standard deviation
+
+    y <- c(rep(model$mu/(1 - sum(model$ar)), times = max.order), rep(NA, n))  #Observations from the resulting garch process
     m <- max.order
-    
-    #simulating GARCH  
-    eps <- h^deltainv * z  #this part often breaks depending on GARCH parameters chosen
-    
+
+    #Inducing ARIMA + GARCH
+    eps <- h^deltainv * z  #this part often breaks depending on GARCH parameters chosen (must be stationary)
+
     for (i in (m + 1):(n + m)) {
-        h[i] = omega + sum(alpha * (abs(eps[i - (1:order.alpha)]) - 
-                                        gamma * (eps[i - (1:order.alpha)]))^delta) + 
-            sum(beta * h[i - (1:order.beta)])  
-        
+        h[i] = omega + sum(alpha * (abs(eps[i - (1:order.alpha)]) -
+                                        gamma * (eps[i - (1:order.alpha)]))^delta) +
+            sum(beta * h[i - (1:order.beta)])
+
         eps[i] = h[i]^deltainv * z[i]
-        y[i] = mu + sum(ar * y[i - (1:order.ar)]) + sum(ma * 
-                                                            eps[i - (1:order.ma)]) + eps[i]
+        y[i] = mu + sum(ar * y[i - (1:order.ar)]) + sum(ma * eps[i - (1:order.ma)]) + eps[i]
     }
-    
+
     if(simple == TRUE) {
-        data <- y[(m + 1):(n + m)] #removes burn in data
+        data <- c(NA, y[(m + 1):(n + m)]) #removes burn in data and only provides ARIMA + GARCH series.
     } else {
-        data <- tibble(z = z[(m + 1):(n + m)], 
-                       sigma = h[(m + 1):(n + m)]^deltainv, 
-                       y = y[(m + 1):(n + m)])
+        data <- tibble(z = c(NA, z[(m + 1):(n + m)]),  # Innovations
+                       h = c(NA, h[(m + 1):(n + m)]^deltainv), #Conditional Standard deviation
+                       y = c(NA, y[(m + 1):(n + m)]))  # ARIMA + GARCH series
     }
+    return(data)
 }
 ```
 
@@ -1141,22 +992,21 @@ in the series after it is processed through the sim\_garch function. -
 sim\_garch is a deterministic function.
 
 ``` r
-source("code/sim_inno.R")
-load("data/garch.Rda")
 set.seed(32156454)
-
 inno <- sgt::rsgt(n = 10001, lambda = -0.0143, p = 1.6650, q = 1.9095)
-#Parameters from Statistics and Data Analysis for Financial Engineering pg.421-423
-model <- list(mu = 0.000002,        
-              omega = 0.000005, #key unconditional volatility parameter
-              alpha = 0.098839, 
-              beta = 0.899506, 
-              ar = 0.063666,
-              ma = NULL,
-              gamma = 0.12194,
-              delta = 1.85)
+
 # Introducing Mean and Var Persistence
-return <- sim_garch(model, inno, simple = TRUE)
+#Parameters from Statistics and Data Analysis for Financial Engineering pg.421-423
+return <- sim_garch(inno, 
+                    omega = 0.000005, #key unconditional volatility parameter
+                    alpha = 0.098839, 
+                    gamma = 0, 
+                    beta = 0.899506, 
+                    mu = 0.899506, 
+                    ar = 0.063666, 
+                    ma = NULL, 
+                    delta = 1.85, 
+                    simple = TRUE)
 
 p_load(patchwork)
 p1 <- inno %>% as_tibble() %>% ggplot(aes(x=1:length(inno), y=value)) +
@@ -1168,7 +1018,9 @@ p2 <- return %>% as_tibble() %>% ggplot(aes(x=1:length(return), y=value)) +
 p1/p2 + plot_annotation(title = "SGT Innovations vs APGARCH Returns")
 ```
 
-<img src="README_files/figure-gfm/unnamed-chunk-4-1.png" width="80%" height="80%" />
+    ## Warning: Removed 1 row(s) containing missing values (geom_path).
+
+<img src="README_files/figure-gfm/unnamed-chunk-3-1.png" width="80%" height="80%" />
 
 ``` r
 p1 <- ggAcf(inno^2)+ theme_bw()+ labs(title = "ACF of Squared Innovations")
@@ -1176,202 +1028,634 @@ p2 <- ggAcf(return^2) + theme_bw() + labs(title = "ACF of Squared Returns")
 p1/p2
 ```
 
-<img src="README_files/figure-gfm/unnamed-chunk-4-2.png" width="80%" height="80%" />
+<img src="README_files/figure-gfm/unnamed-chunk-3-2.png" width="80%" height="80%" />
 
-# Steps 1, 2 and 3: Simulating an Asset Market
+## Simulating Returns
 
-The code below uses the sim\_inno and sim\_garch functions to simulate
-500 days of returns for a market of 20 assets.
+This section introduces the sim\_market function, which is designed to
+carry out the first 3 steps of this Monte Carlo framework.
 
-``` r
-source("code/gen_corr.R")
-source("code/sim_inno.R")
-source("code/sim_garch.R")
+But first some toy examples that demonstrate the inner workings of
+sim\_market are provided.
 
-
-#----------------
-# toy corr matrix
-#----------------
-corr <- gen_corr(D = 20, Clusters = "none", Num_Layers = 3, Num_Clusters = c(2,4,5))   
-#------------------------------
-# Empirical Correlation matrix
-#------------------------------
-#load("data/labeled_training_data.Rda")
-#set.seed(1234)
-#corr <- labeled_training_data$stressed_market[[1]]
-#dim <- sample(1:nrow(corr), size = 20)
-#corr <- corr[dim,dim]
-
-#------------------------------------------
-# marginal distribution parameters (for SGT)
-#------------------------------------------
-
-#sgt_pars <- list(lambda = -0.04140381, p = 1.880649, q = Inf)
-set.seed(8745865)
-inno <- sim_inno(corr = corr, 
-         mv_dist = "t",
-         mv_df = 4,
-         left_cop_param = 4,
-         left_cop_weight = 0.1,
-         marginal_dist = "t",
-         marginal_dist_model = list(mu = 0, df = 3),   #mu is required must change function
-         k = 500)
-
-#---------------------------------------------------------------------------------
-# Model Parameters from Statistics and Data Analysis for Financial Engineering pg.421-423
-#---------------------------------------------------------------------------------
-model <- list(mu = 0.000002,        
-              omega = 0.000005, #key unconditional volatility parameter
-              alpha = 0.098839, 
-              beta = 0.899506, 
-              ar = 0.063666,
-              ma = NULL,
-              gamma = 0.12194,
-              delta = 1.95)
-
-
-#Mapping sim_garch over innovations
-simdat <- inno %>% map_dfc(~sim_garch(innovations = .x, model = model))
-
-#Making Simdat tidy
-tidy_simdat <- simdat %>%  mutate(date = 1:nrow(simdat)) %>% 
-  gather(key = Asset, value = Return, -date)
-
-#generating and plotting Cum returns
-tidy_simdat %>%  
-  arrange(date) %>% 
-  group_by(Asset) %>%
-  mutate(Cum_Return = cumprod(1 + Return)*100) %>%
-  ungroup() %>% 
-  ggplot() + 
-  geom_line(aes(x=date, y=Cum_Return, color = Asset)) +
-  facet_wrap(~Asset, scales = "free_y") +
-  labs(title = "Cumulative Returns",
-       subtitle = "500 Trading Days Across 20 Assets") +
-  theme_bw() +
-  theme(legend.position = "none") 
-```
-
-<img src="README_files/figure-gfm/sim market-1.png" width="80%" height="80%" />
+### Toy Example: Step 1, 2 and 3
 
 ``` r
-tidy_simdat %>% ggplot() +
-  geom_line(aes(x=date,y=Return, color = Asset)) +
-  facet_wrap(~Asset) +
-  labs(title = "Returns",
-       subtitle = "500 Trading Days Across 20 Assets") +
-  theme_bw() +
+p_load(MCmarket)
+
+# -------------------
+# Step 1
+# ------------------
+D <- 10 # Dimention
+k <- 1000 # number of periods
+
+# Create correlation matrix
+corr <- gen_corr(D, cluster = "non-overlapping", num_clusters = 2)
+
+ncop <- ellipCopula(family = "normal", dispstr = "un", param = P2p(corr), dim = D)
+
+data <- rCopula(k, ncop)
+
+# Creating a date vector
+dates <- rmsfuns::dateconverter(StartDate = Sys.Date(),
+                                EndDate = Sys.Date() %m+% lubridate::days(k-1),
+                                Transform = "alldays")
+# Making Tidy & adding date column
+data <- as_tibble(data) %>% 
+  purrr::set_names(glue::glue("Asset_{1:ncol(data)}")%>% as.character()) %>%
+        mutate(date = dates) %>%
+        gather(Asset, Value, -date)
+
+# Vinualisation
+
+data %>% ggplot() +
+  geom_histogram(aes(x = Value, color = "Asset"), bins = 15) +
+  facet_wrap(~Asset, nrow = 2) + 
   theme(legend.position = "none")
 ```
 
-<img src="README_files/figure-gfm/sim market-2.png" width="80%" height="80%" />
-
-## Prototype: sim\_asset\_market Function
+<img src="README_files/figure-gfm/step 1-1.png" width="80%" height="80%" />
 
 ``` r
-source("code/sim_inno.R")
-sim_asset_market <- function(corr, 
-                             k = 500,
-                             mv_dist = "t", 
-                             mv_df = 3,
-                             left_cop_weight = 0,
-                             left_cop_param = 4,
-                             marginal_dist = "norm", 
-                             marginal_dist_model = NULL,         # may want to change to a list
-                             ts_model = NULL 
-                             ) {    
-        #Simulating innovations
-        inno <- sim_inno(corr = corr, 
-                 elliptal_copula = mv_dist,
-                 df_ellip = mv_df,
-                 left_cop_param = left_cop_param,
-                 left_cop_weight = left_cop_weight,
-                 marginal_dist = marginal_dist,
-                 marginal_dist_model = sgt_pars,
-                 k = k) 
-        
-        #Applying sim_garch to each column in simdat
-        simdat <- inno %>% map_dfc(~sim_garch(ts_model, .x))
-        
-        #adding a date column
-        start_date <- Sys.Date()
-        # CHANGE LATER
-        dates <- rmsfuns::dateconverter(StartDate = start_date, 
-                                        EndDate = start_date %m+% lubridate::days(k),
-                                        Transform = "alldays")
-        
-        #Creating final df
-        simdat %>% 
-          mutate(date = dates, .before = `Asset_1`) %>% 
-          gather(key=Asset, value = Return, -date)
+# ----------------
+# Step 2
+# ---------------
+# First set the mean and sd for each asset
+args <- tibble(Asset = glue::glue("Asset_{1:D}") %>% as.character()) %>%
+        mutate(mean = 1:10,  # Setting mean
+               sd = 1:10)    # and sd;  done like this to show that it works
+
+# Then convert Uniform marginal distributions to norm
+data <- data %>% left_join(., args, by = "Asset") %>%
+            group_by(Asset) %>%  arrange(date) %>%
+            mutate(Return =  qnorm(Value, mean, sd)) %>%
+            select(date, Asset, Return) 
+
+
+# Vinualising the transformations
+data %>% ggplot() +
+  geom_histogram(aes(x = Return, color = "Asset"), bins = 15) +
+  facet_wrap(~Asset, nrow = 2, scales = "free_x") + 
+  theme(legend.position = "none")
+```
+
+<img src="README_files/figure-gfm/step 1-2.png" width="80%" height="80%" />
+
+``` r
+# For comparison with step 3 data
+data %>% ggplot() +
+  geom_line(aes(x=date, y=Return, color = Asset)) + 
+  facet_wrap(~Asset, scales = "free_y", ncol = 2) + 
+  theme(legend.position = "none")
+```
+
+<img src="README_files/figure-gfm/step 1-3.png" width="80%" height="80%" />
+
+``` r
+# ---------------
+# Step 3
+# ---------------
+# Tibble with with garh parameters and defaults
+ts_args <- tibble(Asset = glue::glue("Asset_{1:D}") %>% as.character()) %>%
+            mutate(omega = 1,
+                   alpha = seq(0, 1, length.out = 10),
+                   gamma =0,
+                   beta = 0,
+                   mu = rnorm(10, 0.02, 0.01),   #changed form NULL to 0
+                   ar = 0,
+                   ma = 0,
+                   delta = 1.98)
+
+# Applying time series parameters to step 2 data
+data <- data %>% left_join(., ts_args, by = "Asset") %>%
+            arrange(date) %>% group_by(Asset) %>%
+            mutate(Return = sim_garch(innovations = Return,
+                                      omega = omega,
+                                      alpha = alpha,
+                                      gamma = gamma,
+                                      beta = beta,
+                                      mu = mu,
+                                      ar = ar,
+                                      ma = ma,
+                                      delta = delta)) %>% na.omit() %>%
+            select(date, Asset, Return)
+
+# Visualising returns ts
+data %>% ggplot() +
+  geom_line(aes(x=date, y=Return, color = Asset)) + 
+  facet_wrap(~Asset, scales = "free_y", ncol = 2) + 
+  theme(legend.position = "none")
+```
+
+<img src="README_files/figure-gfm/step 1-4.png" width="80%" height="80%" />
+
+### sim\_market
+
+``` r
+#' @title sim_market
+#' @description This function produces a series of returns for an asset market with a
+#' given correlation matrix. The user can choose between the multivariate t and normal
+#' distributions and adjust the markets left tail dependency by weighting in the Clayton copula.
+#' The univariate asset return distributions can also be set to normal, student-t or sgt
+#' distributions. Finally, mean and variance persistence can be induced via the parameters of an
+#' ARMA + APARCH model.
+#' @note  It is suggested that, if the ts_model is used, then the marginal distributions be left
+#' as list(mu = 0, sd = 1). These attributes are better off being set in the ts_model argument.
+#' @param corr a correlation matrix specifying the correlation structure of the simulated data.
+#' Note that the number of variables simulated is equal to the number of columns in the correlation matrix.
+#' @param k a positive integer indicating the number of time periods to simulate.
+#' @param mv_dist a string specifying the multivariate distribution. Can be one of c("norm", "t")
+#' which correspond to the multivariate normal and t distributions respectively.
+#' @param mv_df degrees of freedom of the multivariate distribution, required when mv_dist = "t". Default is 3.
+#' @param left_cop_weight a positive value between zero and one stipulating the weight applied to
+#' the Clayton copula when simulating the multivariate distribution. Note that a value between zero
+#' and one essentially generates a hybrid distribution between the chosen mv_dist and the Clayton
+#' copula. Therefore, the greater the left_cop_weight the less the data will reflect the correlation
+#' structure. Default is set to 0.
+#' @param left_cop_param a positive value indicating the parameter of the Clayton copula. Default is 4.
+#' @param marginal_dist a string variable specifying the asset returns univariate distribution. Can
+#' be one of c("norm", "t", "sgt") referring to the normal, student-t and skewed-generalized-t
+#' distributions respectively. Default is "norm".
+#' @param  marginal_dist_model list containing the relevant parameters for the chosen marginal_dist.
+#'
+#' marginal_dist = "norm" accepts the mean (mu) and standard deviation (sd) arguments with their respective
+#' defaults set to list(mu = 0, sd = 1).
+#'
+#' marginal_dist = "t" accepts the non-centrality parameter (ncp) and degrees of freedom (df) arguments,
+#' default values are list(ncp = 0, df = 5).
+#'
+#' marginal_dist = "sgt" accepts the mean (mu), standard deviation (sd), lambda, p and q parameters
+#' list(mu = 0, sigma = 1, lambda, p, q). Note lambda, p and q have no defaults and must therefore be set
+#' by the user. For more information see the documentation on the qsgt function from the sgt pacakge.
+#' @param ts_model a list containing various ARMA + APGARCH model parameters allowing one to specify
+#' the time series properties of the simulated returns. Note that parameter combinations resulting
+#' in non-stationary of the mean or variance will produce NAN's and that the maximum lag allowed for
+#' any given parameter is 1.
+#'
+#' The default is ts_model = NULL, in which case time series time series properties are not induced, however if
+#' ts_model = list() then the default values are list(omega = 5e-04, alpha = 0, gamma = NULL, beta = 0, mu = 0,
+#' ar = NULL, ma = NULL, delta = 2). In order to set different parameters for each asset simply insert a vector
+#' of length equal to the number of assets, the first element of the vector will correspond to Asset_1, the 2nd
+#' to Asset_2 ect...
+#'
+#' See the sim_garch function's documentation and the "model" parameter under fGarch::garchSpec() for more details
+#' regarding the parameters themselves.
+#'
+#' @return a tidy tibble containing a date, Asset and Return column.
+#'
+#' @importFrom copula P2p ellipCopula archmCopula rCopula
+#' @importFrom glue glue
+#' @importFrom sgt qsgt
+#' @importFrom lubridate '%m+%' days
+#' @importFrom tidyr gather
+#' @import dplyr
+#' @import purrr
+#'
+#' @examples
+#'
+#' \dontrun{
+#'
+#' library(tidyverse)
+#'
+#' ### creating a correlation matrix of 50 assets to use as an input in sim_asset_market.
+#' corr <- gen_corr(N = 20, Clusters = "none")
+#'
+#' ### simulating 500 periods of returns across 50 assets.
+#' set.seed(12345)
+#' market_data <-
+#'          sim_market(corr,
+#'                      k = 500,
+#'                      mv_dist = "norm",
+#'                      left_cop_weight = 0.1,
+#'                      marginal_dist = "norm",
+#'                      ts_model = list(mu = 0.000002,
+#'                                      omega = 0.00005,
+#'                                      alpha = 0.098839,
+#'                                      beta = 0.899506,
+#'                                      ar = 0.063666,
+#'                                      ma = NULL,
+#'                                      gamma = 0.12194,
+#'                                      delta = 1.85))
+#'
+#'  ### Visualising the market
+#'  market_data %>%
+#'  group_by(Asset) %>%
+#'  mutate(cum_ret = 100*cumprod(1 + Return)) %>%
+#'  ggplot() +
+#'  geom_line(aes(x = date, y = cum_ret, color = Asset)) +
+#'  facet_wrap(~Asset) +
+#'  theme(legend.position = "none")
+#'
+#' }
+#' @export
+
+sim_market <- function(corr,
+                       k = 252,
+                       mv_dist = "t",
+                       mv_df = 4,
+                       left_cop_weight = 0,
+                       left_cop_param = 5,
+                       marginal_dist = "norm",
+                       marginal_dist_model = NULL,
+                       ts_model = NULL) {
+
+    N <- nrow(corr)
+    k <- k + 1   # extra room for sim_garch to as a lag.
+    Cor <- P2p(corr)
+
+    # Specifying  Copulas
+    # elliptical
+    if(!(mv_dist %in% c("norm", "t"))) stop("Please supply a valid argument for mv_dist")
+    else
+        if (mv_dist == "t") {
+            if (is.null(mv_df)) stop('Please supply a valid degrees of freedom parameter when using mv_dist = "t".')
+            Ecop <- ellipCopula(family = "t",
+                                dispstr = "un",
+                                df = mv_df,
+                                param = Cor,
+                                dim = N)
+        } else
+            if (mv_dist == "norm") {
+                Ecop <- ellipCopula(family = "normal",
+                                    dispstr = "un",
+                                    param = Cor,
+                                    dim = N)
+            }
+
+    # Left-cop (Archemedian copula)
+    if (left_cop_weight < 0|left_cop_weight > 1) stop("Please provide a valid left_cop_weight between 0 and 1")
+    if (left_cop_weight != 0) {
+        Acop <- archmCopula(family = "clayton",
+                            param = left_cop_param,
+                            dim = N)
+    }
+
+    # Generating random (uniformly distributed) draws from hybrid copula's
+    if (left_cop_weight == 0) {
+        data <- rCopula(k, Ecop)
+    } else
+        if(left_cop_weight == 1) {
+            data <- rCopula(k, Acop)
+        } else {
+            data <- (left_cop_weight*rCopula(k, Acop) + (1-left_cop_weight)*rCopula(k, Ecop))
+        }
+
+    # Creating a date vector
+    dates <- rmsfuns::dateconverter(StartDate = Sys.Date(),
+                                    EndDate = start_date %m+% lubridate::days(k-1),
+                                    Transform = "alldays")
+
+    # Making Tidy & adding date column
+    data <- as_tibble(data) %>%
+        purrr::set_names(glue::glue("Asset_{1:ncol(data)}")) %>%
+        mutate(date = dates) %>%
+        gather(Asset, Value, -date)
+
+    if (!(marginal_dist %in% c("norm", "t", "sgt", "unif"))) stop ("Please supply a valid marginal_dist argument")
+
+    if (marginal_dist == "unif") return(data)
+
+    # Warnings
+    if (marginal_dist == "norm" & is.null(marginal_dist_model)) marginal_dist_model <- list(mu=0, sd = 1)
+    if (marginal_dist == "t" & is.null(marginal_dist_model))  marginal_dist_model <- list(ncp = 0, df = 5)
+    if (marginal_dist == "sgt" & is.null(marginal_dist_model)) stop ('Please supply a valid marginal_dist_model when using marginal_dist="sgt".')
+
+    # Converting Uniform marginal distributions to norm, t or sgt.
+    args <- tibble(Asset = glue::glue("Asset_{1:N}")) %>%
+        mutate(mean = marginal_dist_model$mu,
+               sd = marginal_dist_model$sd,
+               ncp = marginal_dist_model$ncp,
+               df = marginal_dist_model$df,
+               lambda = marginal_dist_model$lambda,
+               p = marginal_dist_model$p,
+               q = marginal_dist_model$q)
+
+    if (marginal_dist == "norm") {
+
+        if(is.null(marginal_dist_model$mu)) stop('Please supply a valid mu parameter when using marginal_dist = "norm".')
+        if(is.null(marginal_dist_model$sd)) stop('Please supply a valid sd parameter when using marginal_dist = "norm".')
+
+        data <- data %>% left_join(., args, by = "Asset") %>%
+            group_by(Asset) %>%  arrange(date) %>%
+            mutate(Return =  qnorm(Value, mean, sd)) %>%
+            select(date, Asset, Return)
+
+    } else
+        if (marginal_dist == "t") {
+
+            if(is.null(marginal_dist_model$ncp)) stop('Please supply a valid ncp parameter when using marginal_dist = "t".')
+            if(is.null(marginal_dist_model$df)) stop('Please supply a valid df parameter when using marginal_dist = "t".')
+
+            data <- data %>% left_join(., args, by = "Asset") %>%
+                group_by(Asset) %>%  arrange(date) %>%
+                mutate(Return = qt(Value, df =  df, ncp =  ncp)) %>%
+                select(date, Asset, Return)
+
+        } else
+            if (marginal_dist == "sgt") {
+
+                if (is.null(marginal_dist_model$mu)) marginal_dist_model$mu <- 0
+                if (is.null(marginal_dist_model$sd)) marginal_dist_model$sd <- 1
+                if (is.null(marginal_dist_model$lambda)|
+                    is.null(marginal_dist_model$p)|
+                    is.null(marginal_dist_model$q)) stop('Please supply valid arguments for lambda, p and q when using marginal_dist = "sgt".')
+
+                data <- data %>% left_join(., args, by = "Asset") %>%
+                    group_by(Asset) %>% arrange(date) %>%
+                    mutate(Return = qsgt(Value, mean, sd, lambda, p, q)) %>%
+                    select(date, Asset, Return)
+
+            }
+
+    if (is.null(ts_model)) {
+
+        data <- data %>% dplyr::filter(date > first(date))
+        return(data)
+
+    } else {
+
+        # Warnings
+        if (!is.null(ts_model$omega) & length(ts_model$omega) != 1 & length(ts_model$omega) != N) stop("Please supply a valid vector length for omega. Must be of length 1 or ncol(corr).")
+        if (!is.null(ts_model$alpha) & length(ts_model$alpha) != 1 & length(ts_model$alpha) != N) stop("Please supply a valid vector length for alpha. Must be of length 1 or ncol(corr).")
+        if (!is.null(ts_model$gamma) & length(ts_model$gamma) != 1 & length(ts_model$gamma) != N) stop("Please supply a valid vector length for gamma. Must be of length 1 or ncol(corr).")
+        if (!is.null(ts_model$beta) & length(ts_model$beta) != 1 & length(ts_model$beta) != N) stop("Please supply a valid vector length for beta. Must be of length 1 or ncol(corr).")
+        if (!is.null(ts_model$mu) & length(ts_model$mu) != 1 & length(ts_model$mu) != N) stop("Please supply a valid vector length for mu. Must be of length 1 or ncol(corr).")
+        if (!is.null(ts_model$ar) & length(ts_model$ar) != 1 & length(ts_model$ar) != N) stop("Please supply a valid vector length for ar. Must be of length 1 or ncol(corr).")
+        if (!is.null(ts_model$ma) & length(ts_model$ma) != 1 & length(ts_model$ma) != N) stop("Please supply a valid vector length for ma. Must be of length 1 or ncol(corr).")
+        if (!is.null(ts_model$delta) & length(ts_model$delta) != 1 & length(ts_model$delta) != N) stop("Please supply a valid vector length for delta. Must be of length 1 or ncol(corr).")
+
+        # Inducing mean and/or variance persistence
+
+        # Tibble with with garh parameters and defaults
+        ts_args <- tibble(Asset = glue::glue("Asset_{1:N}")) %>%
+            mutate(omega = if (is.null(ts_model$omega)) {5e-04} else {ts_model$omega},
+                   alpha = if (is.null(ts_model$alpha)) {0} else {ts_model$alpha},
+                   gamma = if (is.null(ts_model$gamma)) {0}  else {ts_model$gamma},
+                   beta = if (is.null(ts_model$beta)) {0} else {ts_model$beta},
+                   mu = if (is.null(ts_model$mu)) {0} else {ts_model$mu},   #changed form NULL to 0
+                   ar = if (is.null(ts_model$ar)) {0} else {ts_model$ar},
+                   ma = if (is.null(ts_model$ma)) {0} else {ts_model$ma},
+                   delta = if (is.null(ts_model$delta)) {2} else {ts_model$delta})
+
+        # Inducing garch properties
+        data <- data %>% left_join(., ts_args, by = "Asset") %>%
+            arrange(date) %>% group_by(Asset) %>%
+            mutate(Return = sim_garch(innovations = Return,
+                                      omega = omega,
+                                      alpha = alpha,
+                                      gamma = gamma,
+                                      beta = beta,
+                                      mu = mu,
+                                      ar = ar,
+                                      ma = ma,
+                                      delta = delta)) %>% na.omit() %>%
+            select(date, Asset, Return)
+        return(data)
+    }
 }
+```
+
+### Testing sim\_inno
+
+This code simply tests and demonstrates the functionality of sim\_inno.
+
+``` r
+Corr <- gen_corr(D = 50, clusters = "overlapping", num_layers = 3, num_clusters = c(10,5,2))
+Corr %>% ggcorrplot::ggcorrplot()
+```
+
+<img src="README_files/figure-gfm/sim_inno test-1.png" width="80%" height="80%" style="display: block; margin: auto auto auto 0;" />
+
+``` r
+# ----------------------------------------
+# Simulating data with marginal_dist="norm"
+# ----------------------------------------
+set.seed(872154)
+data_norm <- sim_market(corr = Corr, 
+                 mv_dist = "t",
+                 mv_df = 4,
+                 left_cop_param = 5,
+                 left_cop_weight = 0.2,
+                 marginal_dist = "norm",
+                 marginal_dist_model = list(mu = 0, sd = 0.02311859),
+                 k = 500)
+```
+
+    ## Warning in rmvnorm(n, sigma = sigma, ...): sigma is numerically not positive
+    ## semidefinite
+
+``` r
+# ----------------------------------------
+# Simulating data with marginal_dist="sgt"
+# ----------------------------------------
+set.seed(872154)
+sgt_pars <- list(mu = 0, sd = 1, lambda = -0.1, p = 1000, q =3)
+data_sgt <- sim_market(corr = Corr, 
+                 mv_dist = "t",
+                 mv_df = 4,
+                 marginal_dist = "sgt",
+                 marginal_dist_model = sgt_pars,
+                 k = 500)
+```
+
+    ## Warning in rmvnorm(n, sigma = sigma, ...): sigma is numerically not positive
+    ## semidefinite
+
+``` r
+# Seems to work very well.
+# But does it work with left_cop_weight =! 0?
+
+set.seed(123)
+data_lcz <- sim_market(corr = Corr, 
+                 mv_dist = "t",
+                 mv_df = 4,
+                 left_cop_param = 5,
+                 left_cop_weight = 0,
+                 marginal_dist = "norm",
+                 marginal_dist_model = list(mu = 0, sd = 1),
+                 k = 500)
+```
+
+    ## Warning in rmvnorm(n, sigma = sigma, ...): sigma is numerically not positive
+    ## semidefinite
+
+``` r
+set.seed(123)
+data_lcnz <- sim_market(corr = Corr, 
+                 mv_dist = "t",
+                 mv_df = 4,
+                 left_cop_param = 5,
+                 left_cop_weight = 0.5,
+                 marginal_dist = "norm",
+                 marginal_dist_model = list(mu = 0, sd = 1),
+                 k = 500)
+```
+
+    ## Warning in rmvnorm(n, sigma = sigma, ...): sigma is numerically not positive
+    ## semidefinite
+
+``` r
+# checking sd's
+data_lcz %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd = 1
+```
+
+    ## # A tibble: 25,000 x 4
+    ## # Groups:   Asset [50]
+    ##    date       Asset    Return    sd
+    ##    <date>     <glue>    <dbl> <dbl>
+    ##  1 2021-01-11 Asset_1   0.387 0.968
+    ##  2 2021-01-11 Asset_2   0.270 1.02 
+    ##  3 2021-01-11 Asset_3   0.264 1.03 
+    ##  4 2021-01-11 Asset_4   0.824 1.02 
+    ##  5 2021-01-11 Asset_5   0.187 1.00 
+    ##  6 2021-01-11 Asset_6   0.909 1.02 
+    ##  7 2021-01-11 Asset_7  -0.334 1.01 
+    ##  8 2021-01-11 Asset_8   0.556 1.01 
+    ##  9 2021-01-11 Asset_9   0.369 0.993
+    ## 10 2021-01-11 Asset_10  0.407 0.993
+    ## # ... with 24,990 more rows
+
+``` r
+data_lcnz %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd approx = 0.59
+```
+
+    ## # A tibble: 25,000 x 4
+    ## # Groups:   Asset [50]
+    ##    date       Asset     Return    sd
+    ##    <date>     <glue>     <dbl> <dbl>
+    ##  1 2021-01-11 Asset_1   0.296  0.580
+    ##  2 2021-01-11 Asset_2  -0.214  0.572
+    ##  3 2021-01-11 Asset_3   0.207  0.568
+    ##  4 2021-01-11 Asset_4   0.118  0.580
+    ##  5 2021-01-11 Asset_5   0.265  0.582
+    ##  6 2021-01-11 Asset_6   0.0234 0.583
+    ##  7 2021-01-11 Asset_7   0.0661 0.570
+    ##  8 2021-01-11 Asset_8   0.0955 0.564
+    ##  9 2021-01-11 Asset_9   0.289  0.569
+    ## 10 2021-01-11 Asset_10  0.478  0.592
+    ## # ... with 24,990 more rows
+
+``` r
+# Something is not working as intended???
 ```
 
 # Step 4: Simulating an Ensemble of Asset Markets
 
-The mc\_market function performs the montecarlo simulation of asset
+The mc\_market function performs the Monte Carlo simulation of asset
 markets.
 
 ## mc\_market
 
-Arguments: - corr a correlation matrix. - N Positive integer indicating
-the number of markets to simulate. - k Positive integer indicating the
-number of time periods per market. - mv\_dist a string specifying the
-multivariate distribution. Can be one of c(“norm”, “t”) refering to the
-multivariate normal and t distributions respectively. - mv\_df degrees
-of freedom of the multivariate distribution, required when mv\_dist =
-“t”. - left\_cop\_weight a positive value between 0 and 1, indicating
-the weight attributed to the Clayton copula, which exhibits increased
-left-tail dependencies. Note that the higher the weight the less the
-data will adherer to the input correlation matrix. Default is 0. -
-left\_cop\_param the parameter of the Clayton copula. Default is 4. -
-marginal\_dist a string specifying the univariate distribution of each
-assets innovations. Can be one of c(“norm”, “t”, “sgt”) referring to the
-normal, student-t and skewed-generalized-t distributions respectively.
-Default is “norm”. - marginal\_dist\_model a list containing relevant
-parameters for the chosen marginal\_dist, note that the values are
-normalized to zero mean and standard deviation of 1, since the ts\_model
-argument is better suited to specify the typical daily mean and
-volatility. marginal\_dist = “norm” accepts a mean and standard
-deviation list(mu, sigma), default is 0 and 1 respectively.
-marginal\_dist = “t” accepts the non-centrality and degrees of freedom
-argument default values are list(mu = 0, df = 5). marginal\_dist = “sgt”
-accepts the mean, sd, lambda, p and q parameters list(mu, sigma, lambda,
-p, q), the defaults for mu and sigma are 0 and 1 respectively, but
-lambda, p and q must be set by the user. - ts\_model a list containing
-various ARIMA + GARCH, AP-GARCH, GJR-GARCH, ect… parameters allowing
-once to specify the time series properties of the simulated returns.
-Note that parameter combinations resulting in non-stationary of the mean
-or variance will produce NAN’s. The default values are set as list(omega
-= 5e-04, alpha = 0, gamma = NULL, beta = 0, mu = 0, ar = NULL, ma =
-NULL, delta = 2). Note that omega is a key input indicating the constant
-coefficient of the variance equation.
-
-… additional arguments passed onto sim\_asset\_market
-
 ``` r
-source("code/sim_inno.R")
-source("code/sim_asset_market.R")
-library(furrr)
-```
+#' @title mc_market
+#' @description This function produces an ensemble of market returns with a given correlation matrix.
+#' The user can choose between the multivariate t and normal
+#' distributions and adjust the markets left tail dependency by weighting in the Clayton copula.
+#' The univariate asset return distributions can also be set to normal, student-t or sgt
+#' distributed. Finally, mean and variance persistence can be induced via the parameters of an
+#' ARMA + APARCH model.
+#' @note See examples under sim_market_with_progress for instructions on how to add an on screen
+#'  progress bar when performing the Monte Carlo simulation, this is recommended as calculations may
+#'  take a number of minuets.
+#'
+#' It is suggested that the marginal distributions be set to mean zero and standard deviation
+#' one. Those attributes are better set in the ts_model argument.
+#' @param corr a correlation matrix specifying the correlation structure of the simulated data.
+#' Note that the number of variables simulated is equal to the number of columns in the correlation matrix.
+#' @param N a positive integer indicating the number of markets to simulate.
+#' @param k a positive integer indicating the number of time periods to simulate.
+#' @param mv_dist a string specifying the multivariate distribution. Can be one of c("norm", "t")
+#' which correspond to the multivariate normal and t distributions respectively.
+#' @param mv_df degrees of freedom of the multivariate distribution, required when mv_dist = "t". Default is 3.
+#' @param left_cop_weight a positive value between zero and one stipulating the weight applied to
+#' the Clayton copula when simulating the multivariate distribution. Note that a value between zero
+#' and one essentially generates a hybrid distribution between the chosen mv_dist and the Clayton
+#' copula. Therefore, the greater the left_cop_weight the less the data will reflect the correlation
+#' structure. Default is set to 0.
+#' @param left_cop_param a positive value indicating the parameter of the Clayton copula. Default is 4.
+#' @param marginal_dist a string variable specifying the asset returns univariate distribution. Can
+#' be one of c("norm", "t", "sgt") referring to the normal, student-t and skewed-generalized-t
+#' distributions respectively. Default is "norm".
+#' @param  marginal_dist_model list containing the relevant parameters for the chosen marginal_dist.
+#'
+#' marginal_dist = "norm" accepts the mean (mu) and standard deviation (sd) arguments with their respective
+#' defaults set to list(mu = 0, sd = 1).
+#'
+#' marginal_dist = "t" accepts the non-centrality parameter (ncp) and degrees of freedom (df) arguments,
+#' default values are list(ncp = 0, df = 5).
+#'
+#' marginal_dist = "sgt" accepts the mean (mu), standard deviation (sd), lambda, p and q parameters
+#' list(mu = 0, sigma = 1, lambda, p, q). Note lambda, p and q have no defaults and must therefore be set
+#' by the user. For more information see the documentation on the qsgt function from the sgt pacakge.
+#' @param ts_model a list containing various ARMA + APGARCH model parameters allowing one to specify
+#' the time series properties of the simulated returns. Note that parameter combinations resulting
+#' in non-stationary of the mean or variance will produce NAN's and that the maximum lag allowed for
+#' any given parameter is 1.
+#'
+#' The default is ts_model = NULL, in which case time series time series properties are not induced, however if
+#' ts_model = list() then the default values are list(omega = 5e-04, alpha = 0, gamma = NULL, beta = 0, mu = 0,
+#' ar = NULL, ma = NULL, delta = 2). In order to set different parameters for each asset simply insert a vector
+#' of length equal to the number of assets, the first element of the vector will correspond to Asset_1, the 2nd
+#' to Asset_2 ect...
+#'
+#' See the sim_garch function's documentation and the "model" parameter under fGarch::garchSpec() for more details
+#' regarding the parameters themselves.
+#' @return a tidy tibble containing a date, Universe, Asset and Return column.
+#'
+#' @importFrom tidyr gather
+#' @importFrom dplyr progress_estimated
+#' @import dplyr
+#' @import purrr
+#'
+#' @examples
+#'
+#' \dontrun{
+#'
+#' library(tidyverse)
+#'
+#' ### creating a correlation matrix to use as input in sim_asset_market
+#' corr <- gen_corr(N = 20, Clusters = "none")
+#'
+#' ### simulating 550 periods of returns across 50 assets
+#' set.seed(12542)
+#' market_data <- sim_asset_market(corr,
+#'                                 k = 550,
+#'                                 mv_dist = "norm",
+#'                                 left_cop_weight = 0.1,
+#'                                 marginal_dist = "norm",
+#'                                 ts_model = list(mu = 0.000002,
+#'                                                 omega = 0.00005,
+#'                                                 alpha = 0.098839,
+#'                                                 beta = 0.899506,
+#'                                                 ar = 0.063666,
+#'                                                 ma = NULL,
+#'                                                 gamma = 0.12194,
+#'                                                 delta = 1.85))
+#'
+#'  ### Visualising the market
+#'  market_data %>% group_by(Asset) %>%
+#'  mutate(cum_ret = 100*cumprod(1 + Return)) %>%
+#'          ggplot() +
+#'          geom_line(aes(x = date, y = cum_ret, color = Asset)) +
+#'          facet_wrap(~Asset) +
+#'          theme(legend.position = "none")
+#'
+#' }
+#' @export
+mc_market <- function(corr,
+                       N = 100,
+                       k = 252,
+                       mv_dist = "t",
+                       mv_df = 3,
+                       left_cop_weight = 0,
+                       left_cop_param = 4,
+                       marginal_dist = "norm",
+                       marginal_dist_model = NULL,
+                       ts_model = list()
+) {
 
-    ## Loading required package: future
-
-``` r
-mc_market <- function(corr, 
-                      N = 100, 
-                      k = 252, 
-                      mv_dist = "t",
-                      mv_df = 3,
-                      left_cop_weight = 0,
-                      left_cop_param = 4,
-                      marginal_dist = "norm",
-                      marginal_dist_model = NULL,         # may want to change to a list
-                      ts_model = list(),
-                      parallel = FALSE) {
-  if (parallel == FALSE) {
-    mc_data <- 1:N %>% 
-      map(~sim_asset_market(corr = corr, 
+    1:N %>%
+        map_dfr(~sim_market(corr = corr,
                             k = k,
                             mv_dist = mv_dist,
                             mv_df = mv_df,
@@ -1379,34 +1663,18 @@ mc_market <- function(corr,
                             left_cop_param = left_cop_param,
                             marginal_dist = marginal_dist,
                             marginal_dist_model = marginal_dist_model,
-                            ts_model = ts_model)) %>% # Must add additional arguments
-      reduce(left_join, by = c("date","Asset"))
-} else
-  if (parallel == TRUE) {
-    mc_data <- 1:N %>% 
-      future_map(~sim_asset_market(corr = corr, 
-                                   k = k,
-                                   mv_dist = mv_dist, 
-                                   mv_df = mv_df,
-                                   left_cop_weight = left_cop_weight,
-                                   left_cop_param = left_cop_param,
-                                   marginal_dist = marginal_dist, 
-                                   marginal_dist_model = marginal_dist_model, 
-                                   ts_model = ts_model)) %>%   # Must add additional arguments
-      reduce(left_join, by = c("date","Asset"))
-  }
-  colnames(mc_data) <- c("date", "Asset", glue("Universe_{1:(ncol(mc_data)-2)}"))
-  
-  mc_data %>% gather(Universe, Return, c(-date, -Asset))
+                            ts_model = ts_model),
+                .id = "Universe")
 }
 ```
+
+## Visualising the Monte Carlo Market
 
 ``` r
 #---------
 #toy corr
 #--------
-source("code/gen_corr.R")
-corr <- gen_corr(D = 20, Clusters = "overlapping", Num_Clusters = c(2,5,4), Num_Layers = 3 )
+corr <- MCmarket::gen_corr(D = 20, clusters = "overlapping", num_clusters = c(2,5,4), num_layers = 3 )
 #--------------
 #emperical corr
 #--------------
@@ -1436,4 +1704,238 @@ mc_data %>%
   theme(legend.position = "none") 
 ```
 
-<img src="README_files/figure-gfm/unnamed-chunk-6-1.png" width="80%" height="80%" />
+<img src="README_files/figure-gfm/unnamed-chunk-5-1.png" width="80%" height="80%" />
+
+## sim\_market\_with\_progress
+
+This is used if user wants to see a progress bar when performing MC
+simulations.
+
+``` r
+#' @title sim_market_with_progress
+#' @description This is an alternative version of the sim_market function that
+#' includes functionality to include a progress bar when used in purrr::map functions
+#' @note  See ??sim_market for details on use.
+#' @return a tidy tibble containing a date, Asset and Return column.
+#'
+#' @importFrom copula ellipCopula archmCopula rcopula
+#' @importFrom glue glue
+#' @importFrom sgt qsgt
+#' @importFrom lubridate '%m+%' days
+#' @importFrom tidyr gather
+#' @import dplyr
+#' @import purrr
+#'
+#' @examples
+#'
+#' \dontrun{
+#'
+#' library(MCmarket)
+#' library(tidyverse)
+#'
+#' ### creating a correlation matrix to use as input in sim_asset_market
+#' corr <- gen_corr(N = 20, Clusters = "none")
+#'
+#'
+#' N <- 100
+#' pb <- dplyr::progress_estimated(N)   # this must be named pb
+#' market <-
+#'       map_dfr(1:N,
+#'               ~sim_market_with_progress(corr),
+#'               .id = "Universe")
+#'
+#' }
+#' @export
+sim_market_with_progress <- function(corr,
+                                     k = 252,
+                                     mv_dist = "t",
+                                     mv_df = 3,
+                                     left_cop_weight = 0,
+                                     left_cop_param = 4,
+                                     marginal_dist = "norm",
+                                     marginal_dist_model = NULL,
+                                     ts_model = list()
+) {
+
+    # Tick to progress bar
+    pb$tick()$print()
+
+    # sim_market
+    N <- nrow(corr)
+    k <- k + 1   # extra room for sim_garch to as a lag.
+    Cor <- P2p(corr)
+
+    # Specifying  Copulas
+    # elliptical
+    if(!(mv_dist %in% c("norm", "t"))) stop("Please supply a valid argument for mv_dist")
+    else
+        if (mv_dist == "t") {
+            if (is.null(mv_df)) stop('Please supply a valid degrees of freedom parameter when using mv_dist = "t".')
+            Ecop <- ellipCopula(family = "t",
+                                dispstr = "un",
+                                df = mv_df,
+                                param = Cor,
+                                dim = N)
+        } else
+            if (mv_dist == "norm") {
+                Ecop <- ellipCopula(family = "normal",
+                                    dispstr = "un",
+                                    param = Cor,
+                                    dim = N)
+            }
+
+    # Left-cop (Archemedian copula)
+    if (left_cop_weight < 0|left_cop_weight > 1) stop("Please provide a valid left_cop_weight between 0 and 1")
+    if (left_cop_weight != 0) {
+        Acop <- archmCopula(family = "clayton",
+                            param = left_cop_param,
+                            dim = N)
+    }
+
+    # Generating random (uniformly distributed) draws from hybrid copula's
+    if (left_cop_weight == 0) {
+        data <- rCopula(k, Ecop)
+    } else
+        if(left_cop_weight == 1) {
+            data <- rCopula(k, Acop)
+        } else {
+            data <- (left_cop_weight*rCopula(k, Acop) + (1-left_cop_weight)*rCopula(k, Ecop))
+        }
+
+    # Creating a date vector
+    start_date <- Sys.Date()
+    dates <- rmsfuns::dateconverter(StartDate = start_date,
+                                    EndDate = start_date %m+% lubridate::days(k-1),
+                                    Transform = "alldays")
+
+    # Making Tidy & adding date column
+    data <- as_tibble(data) %>%
+        purrr::set_names(glue::glue("Asset_{1:ncol(data)}")) %>%
+        mutate(date = dates) %>%
+        gather(Asset, Value, -date)
+
+    if (!(marginal_dist %in% c("norm", "t", "sgt", "unif"))) stop ("Please supply a valid marginal_dist argument")
+
+    if (marginal_dist == "unif") return(data)
+
+    # Warnings
+    if (marginal_dist == "norm" & is.null(marginal_dist_model)) marginal_dist_model <- list(mu=0, sd = 1)
+    if (marginal_dist == "t" & is.null(marginal_dist_model))  marginal_dist_model <- list(mu=0, df = 5)
+    if (marginal_dist == "sgt" & is.null(marginal_dist_model)) stop ('Please supply a valid marginal_dist_model when using marginal_dist="sgt".')
+
+    #Converting Uniform marginal distributions to norm, t or sgt.
+    args <- tibble(Asset = glue::glue("Asset_{1:N}")) %>%
+        mutate(mean = marginal_dist_model$mu,
+               sd = marginal_dist_model$sd,
+               ncp = marginal_dist_model$ncp,
+               df = marginal_dist_model$df,
+               lambda = marginal_dist_model$lambda,
+               p = marginal_dist_model$p,
+               q = marginal_dist_model$q)
+
+    if (marginal_dist == "norm") {
+
+        if(is.null(marginal_dist_model$mu)) stop('Please supply a valid mu parameter when using marginal_dist = "norm".')
+        if(is.null(marginal_dist_model$sd)) stop('Please supply a valid sd parameter when using marginal_dist = "norm".')
+
+        data <- data %>% left_join(., args, by = "Asset") %>%
+            group_by(Asset) %>%  arrange(date) %>%
+            mutate(Return =  qnorm(Value, mean, sd)) %>%
+            select(date, Asset, Return)
+
+    } else
+        if (marginal_dist == "t") {
+
+            if(is.null(marginal_dist_model$ncp)) stop('Please supply a valid ncp parameter when using marginal_dist = "t".')
+            if(is.null(marginal_dist_model$df)) stop('Please supply a valid df parameter when using marginal_dist = "t".')
+
+            data <- data %>% left_join(., args, by = "Asset") %>%
+                group_by(Asset) %>%  arrange(date) %>%
+                mutate(Return = qt(Value, df =  df, ncp =  ncp)) %>%
+                select(date, Asset, Return)
+
+        } else
+            if (marginal_dist == "sgt") {
+
+                if (is.null(marginal_dist_model$mu)) marginal_dist_model$mu <- 0
+                if (is.null(marginal_dist_model$sd)) marginal_dist_model$sd <- 1
+                if (is.null(marginal_dist_model$lambda)|
+                    is.null(marginal_dist_model$p)|
+                    is.null(marginal_dist_model$q)) stop('Please supply valid arguments for lambda, p and q when using marginal_dist = "sgt".')
+
+                data <- data %>% left_join(., args, by = "Asset") %>%
+                    group_by(Asset) %>% arrange(date) %>%
+                    mutate(Return = qsgt(Value, mean, sd, lambda, p, q)) %>%
+                    select(date, Asset, Return)
+
+            }
+
+    if (is.null(ts_model)) {
+
+        data <- data %>% dplyr::filter(date > first(date))
+        return(data)
+
+    } else {
+
+        # Warnings
+        if (!is.null(ts_model$omega) & length(ts_model$omega) != 1 & length(ts_model$omega) != N) stop("Please supply a valid vector length for omega. Must be of length 1 or ncol(corr).")
+        if (!is.null(ts_model$alpha) & length(ts_model$alpha) != 1 & length(ts_model$alpha) != N) stop("Please supply a valid vector length for alpha. Must be of length 1 or ncol(corr).")
+        if (!is.null(ts_model$gamma) & length(ts_model$gamma) != 1 & length(ts_model$gamma) != N) stop("Please supply a valid vector length for gamma. Must be of length 1 or ncol(corr).")
+        if (!is.null(ts_model$beta) & length(ts_model$beta) != 1 & length(ts_model$beta) != N) stop("Please supply a valid vector length for beta. Must be of length 1 or ncol(corr).")
+        if (!is.null(ts_model$mu) & length(ts_model$mu) != 1 & length(ts_model$mu) != N) stop("Please supply a valid vector length for mu. Must be of length 1 or ncol(corr).")
+        if (!is.null(ts_model$ar) & length(ts_model$ar) != 1 & length(ts_model$ar) != N) stop("Please supply a valid vector length for ar. Must be of length 1 or ncol(corr).")
+        if (!is.null(ts_model$ma) & length(ts_model$ma) != 1 & length(ts_model$ma) != N) stop("Please supply a valid vector length for ma. Must be of length 1 or ncol(corr).")
+        if (!is.null(ts_model$delta) & length(ts_model$delta) != 1 & length(ts_model$delta) != N) stop("Please supply a valid vector length for delta. Must be of length 1 or ncol(corr).")
+
+        # Inducing mean and/or variance persistence
+
+        # Tibble with with garh parameters and defaults
+        ts_args <- tibble(Asset = glue::glue("Asset_{1:N}")) %>%
+            mutate(omega = if (is.null(ts_model$omega)) {5e-04} else {ts_model$omega},
+                   alpha = if (is.null(ts_model$alpha)) {0} else {ts_model$alpha},
+                   gamma = if (is.null(ts_model$gamma)) {0}  else {ts_model$gamma},
+                   beta = if (is.null(ts_model$beta)) {0} else {ts_model$beta},
+                   mu = if (is.null(ts_model$mu)) {0} else {ts_model$mu},   #changed form NULL to 0
+                   ar = if (is.null(ts_model$ar)) {0} else {ts_model$ar},
+                   ma = if (is.null(ts_model$ma)) {0} else {ts_model$ma},
+                   delta = if (is.null(ts_model$delta)) {2} else {ts_model$delta})
+
+        # Inducing garch properties
+        data <- data %>% left_join(., ts_args, by = "Asset") %>%
+            arrange(date) %>% group_by(Asset) %>%
+            mutate(Return = sim_garch(innovations = Return,
+                                      omega = omega,
+                                      alpha = alpha,
+                                      gamma = gamma,
+                                      beta = beta,
+                                      mu = mu,
+                                      ar = ar,
+                                      ma = ma,
+                                      delta = delta)) %>% na.omit() %>%
+            select(date, Asset, Return)
+        return(data)
+    }
+}
+```
+
+### sim\_market\_with\_progress Example
+
+``` r
+N <- 10
+pb <- dplyr::progress_estimated(N)   # this must be named pb
+```
+
+    ## Warning: `progress_estimated()` is deprecated as of dplyr 1.0.0.
+    ## This warning is displayed once every 8 hours.
+    ## Call `lifecycle::last_warnings()` to see where this warning was generated.
+
+``` r
+market <-
+       map_dfr(1:N,
+               ~sim_market_with_progress(diag(10)),
+               .id = "Universe")
+
+object.size(x = market) %>% print(units = "Mb")
+```
+
+    ## 0.9 Mb
