@@ -213,16 +213,30 @@ gen_corr <- function (D = 50,
 Demonstrating the use of gen\_corr
 
 ``` r
-gen_corr(D = 60, clusters = "overlapping", num_layers = 4, num_clusters = c(10,5,4,2)) %>% ggcorrplot::ggcorrplot(title = "Overlapping Clusters", hc.order = TRUE)
+gen_corr(D = 60, clusters = "none") %>% 
+  ggcorrplot::ggcorrplot(title = "No Clusters", hc.order = FALSE)
 ```
 
 <img src="README_files/figure-gfm/using gen_corr-1.png" width="80%" height="80%" />
 
-## Creating a Dataset of Emperical Correlation Matrix’s
+``` r
+gen_corr(D = 60, clusters = "non-overlapping", num_clusters = c(3)) %>% 
+  ggcorrplot::ggcorrplot(title = "Non-Overlapping Clusters", hc.order = FALSE)
+```
+
+<img src="README_files/figure-gfm/using gen_corr-2.png" width="80%" height="80%" />
+
+``` r
+gen_corr(D = 60, clusters = "overlapping", num_layers = 4, num_clusters = c(10,5,4,2)) %>% ggcorrplot::ggcorrplot(title = "Overlapping Clusters", hc.order = FALSE)
+```
+
+<img src="README_files/figure-gfm/using gen_corr-3.png" width="80%" height="80%" />
+
+## Creating a Dataset of Emperical Correlation Matrices
 
 Since it would also be useful for MCmarkets’s users to have easy acess
 to some labeled empirical correlation matrices, a data set containing
-correlation matricies labeled “stressed”, “rally” and “normal” is now
+correlation matrices labeled “stressed”, “rally” and “normal” is now
 constructed.
 
 S\&P500 data since 1/01/2000 is used to sample covariance matrices that
@@ -487,7 +501,7 @@ training_data <- 1:length(market_data) %>% map(~calc_cor(market_data, .x))
 save(training_data, file = "data/training_data.Rda")
 ```
 
-#### An Example of Each Type of Correlation Matrix
+#### An Example of Each Type of Emperical Correlation Matrix
 
 Note that they are converted from covariance matrices to correlation
 matrices before being plotted.
@@ -827,15 +841,6 @@ The simulated innovations do not yet demonstrate the mean and/or
 volatility persistence observed in real asset return series, hence why I
 refer to them as innovations.
 
-``` r
-p1 <- ggAcf(rnorm(200)) + theme_bw() + labs(title = "ACF of Innovations")
-p2 <- ggAcf(rnorm(200)^2) + theme_bw() + labs(title = "ACF of Squared Innovations")
-p <- p1 / p2 
-p + plot_annotation(title = "No Significant Persistence in Mean or Volatility")
-```
-
-<img src="README_files/figure-gfm/archlm-1.png" width="80%" height="80%" />
-
 In this step I introduce autocorrelation and volatility using an
 ARMA(p,q) + APGARCH(q,p) model.
 
@@ -1054,6 +1059,7 @@ corr <- gen_corr(D, cluster = "non-overlapping", num_clusters = 2)
 
 ncop <- ellipCopula(family = "normal", dispstr = "un", param = P2p(corr), dim = D)
 
+set.seed(1234)
 data <- rCopula(k, ncop)
 
 # Creating a date vector
@@ -1066,7 +1072,7 @@ data <- as_tibble(data) %>%
         mutate(date = dates) %>%
         gather(Asset, Value, -date)
 
-# Vinualisation
+# Visualization
 
 data %>% ggplot() +
   geom_histogram(aes(x = Value, color = "Asset"), bins = 15) +
@@ -1082,8 +1088,8 @@ data %>% ggplot() +
 # ---------------
 # First set the mean and sd for each asset
 args <- tibble(Asset = glue::glue("Asset_{1:D}") %>% as.character()) %>%
-        mutate(mean = 1:10,  # Setting mean
-               sd = 1:10)    # and sd;  done like this to show that it works
+        mutate(mean = 0,  # Setting mean
+               sd = 1)    # and sd;  can also be a vector of length = n.o assets
 
 # Then convert Uniform marginal distributions to norm
 data <- data %>% left_join(., args, by = "Asset") %>%
@@ -1092,7 +1098,28 @@ data <- data %>% left_join(., args, by = "Asset") %>%
             select(date, Asset, Return) 
 
 
-# Vinualising the transformations
+# Visualizing the transformations
+data %>% group_by(Asset) %>% mutate(mean = mean(Return),
+                                    sd  = sd(Return))
+```
+
+    ## # A tibble: 10,000 x 5
+    ## # Groups:   Asset [10]
+    ##    date       Asset    Return     mean    sd
+    ##    <date>     <chr>     <dbl>    <dbl> <dbl>
+    ##  1 2021-01-11 Asset_1  -1.03   0.0341  1.02 
+    ##  2 2021-01-11 Asset_2  -0.557  0.0150  1.03 
+    ##  3 2021-01-11 Asset_3  -0.301  0.0212  1.01 
+    ##  4 2021-01-11 Asset_4  -1.39   0.0160  1.02 
+    ##  5 2021-01-11 Asset_5  -0.509  0.0262  1.01 
+    ##  6 2021-01-11 Asset_6  -0.597 -0.00147 0.954
+    ##  7 2021-01-11 Asset_7  -0.939  0.0150  0.953
+    ##  8 2021-01-11 Asset_8  -0.930 -0.00421 0.954
+    ##  9 2021-01-11 Asset_9  -0.935  0.0107  0.934
+    ## 10 2021-01-11 Asset_10 -1.04  -0.00137 0.957
+    ## # ... with 9,990 more rows
+
+``` r
 data %>% ggplot() +
   geom_histogram(aes(x = Return, color = "Asset"), bins = 15) +
   facet_wrap(~Asset, nrow = 2, scales = "free_x") + 
@@ -1102,7 +1129,7 @@ data %>% ggplot() +
 <img src="README_files/figure-gfm/step 1-2.png" width="80%" height="80%" />
 
 ``` r
-# For comparison with step 3 data
+# For comparison from step 3
 data %>% ggplot() +
   geom_line(aes(x=date, y=Return, color = Asset)) + 
   facet_wrap(~Asset, scales = "free_y", ncol = 2) + 
@@ -1118,10 +1145,10 @@ data %>% ggplot() +
 # Tibble with with garh parameters and defaults
 ts_args <- tibble(Asset = glue::glue("Asset_{1:D}") %>% as.character()) %>%
             mutate(omega = 1,
-                   alpha = seq(0, 1, length.out = 10),
+                   alpha = seq(0, 0.999, length.out = 10),
                    gamma =0,
                    beta = 0,
-                   mu = rnorm(10, 0.02, 0.01),   #changed form NULL to 0
+                   mu = rnorm(10, 0.02, 0.01),   #changed from NULL to 0
                    ar = 0,
                    ma = 0,
                    delta = 1.98)
@@ -1148,6 +1175,55 @@ data %>% ggplot() +
 ```
 
 <img src="README_files/figure-gfm/step 1-4.png" width="80%" height="80%" />
+
+``` r
+# ------------------------------------
+# Steps 1 and 2 with hybrid copula
+# ------------------------------------
+
+# Creating copula onjects
+ncop <- ellipCopula(family = "normal", dispstr = "un", param = P2p(corr), dim = D)
+acop <- archmCopula(family = "clayton", param = 4,  dim = D)
+
+clayton_weight <- 0.5
+data <- (clayton_weight*rCopula(copula = acop, n =  1000)) + (1-clayton_weight)*rCopula(copula = ncop, n = 1000)
+
+set.seed(1234)
+data <- as_tibble(data) %>% 
+  purrr::set_names(glue::glue("Asset_{1:ncol(data)}")%>% as.character()) %>%
+        mutate(date = dates) %>%
+        gather(Asset, Value, -date) 
+
+args <- tibble(Asset = glue::glue("Asset_{1:D}") %>% as.character()) %>%
+        mutate(mean = 0,  # Setting mean
+               sd = 1)    # and sd;  can also be a vector of length = n.o assets
+
+# Then convert Uniform marginal distributions to norm
+data <- data %>% left_join(., args, by = "Asset") %>%
+            group_by(Asset) %>%  arrange(date) %>%
+            mutate(Return =  qnorm(Value, mean, sd)) %>%
+            select(date, Asset, Return) 
+
+# SD can't be set as intended. Not sure what is going on (more on this later)
+data %>% group_by(Asset) %>% mutate(mean = mean(Return),
+                                    sd  = sd(Return))
+```
+
+    ## # A tibble: 10,000 x 5
+    ## # Groups:   Asset [10]
+    ##    date       Asset    Return      mean    sd
+    ##    <date>     <chr>     <dbl>     <dbl> <dbl>
+    ##  1 2021-01-11 Asset_1   0.188 -0.0154   0.588
+    ##  2 2021-01-11 Asset_2   0.322  0.00708  0.591
+    ##  3 2021-01-11 Asset_3   0.581 -0.00428  0.598
+    ##  4 2021-01-11 Asset_4   0.266 -0.00223  0.606
+    ##  5 2021-01-11 Asset_5   0.517 -0.00536  0.598
+    ##  6 2021-01-11 Asset_6  -0.594  0.00647  0.596
+    ##  7 2021-01-11 Asset_7  -0.883  0.0146   0.596
+    ##  8 2021-01-11 Asset_8  -0.908 -0.000244 0.585
+    ##  9 2021-01-11 Asset_9  -0.738  0.0118   0.590
+    ## 10 2021-01-11 Asset_10 -0.866 -0.00201  0.599
+    ## # ... with 9,990 more rows
 
 ### sim\_market
 
@@ -1297,7 +1373,7 @@ sim_market <- function(corr,
         if(left_cop_weight == 1) {
             data <- rCopula(k, Acop)
         } else {
-            data <- (left_cop_weight*rCopula(k, Acop) + (1-left_cop_weight)*rCopula(k, Ecop))
+            data <- left_cop_weight*rCopula(k, Acop) + (1-left_cop_weight)*rCopula(k, Ecop)
         }
 
     # Creating a date vector
@@ -1466,14 +1542,14 @@ data_sgt <- sim_market(corr = Corr,
 # But does it work with left_cop_weight =! 0?
 
 set.seed(123)
-data_lcz <- sim_market(corr = Corr, 
-                 mv_dist = "t",
-                 mv_df = 4,
-                 left_cop_param = 5,
-                 left_cop_weight = 0,
-                 marginal_dist = "norm",
-                 marginal_dist_model = list(mu = 0, sd = 1),
-                 k = 500)
+data_nlc <- sim_market(corr = Corr, 
+                       mv_dist = "t",
+                       mv_df = 4,
+                       left_cop_param = 5,
+                       left_cop_weight = 0,
+                       marginal_dist = "norm",
+                       marginal_dist_model = list(mu = 0, sd = 1),
+                       k = 500)
 ```
 
     ## Warning in rmvnorm(n, sigma = sigma, ...): sigma is numerically not positive
@@ -1481,58 +1557,88 @@ data_lcz <- sim_market(corr = Corr,
 
 ``` r
 set.seed(123)
-data_lcnz <- sim_market(corr = Corr, 
-                 mv_dist = "t",
-                 mv_df = 4,
-                 left_cop_param = 5,
-                 left_cop_weight = 0.5,
-                 marginal_dist = "norm",
-                 marginal_dist_model = list(mu = 0, sd = 1),
-                 k = 500)
+data_lc <- sim_market(corr = Corr, 
+                      mv_dist = "t",
+                      mv_df = 4,
+                      left_cop_param = 5,
+                      left_cop_weight = 0.5,
+                      marginal_dist = "norm",
+                      marginal_dist_model = list(mu = 0, sd = 1),
+                      k = 500)
 ```
 
     ## Warning in rmvnorm(n, sigma = sigma, ...): sigma is numerically not positive
     ## semidefinite
 
 ``` r
+set.seed(123)
+data_lco <- sim_market(corr = Corr, 
+                      mv_dist = "t",
+                      mv_df = 4,
+                      left_cop_param = 5,
+                      left_cop_weight = 1,
+                      marginal_dist = "norm",
+                      marginal_dist_model = list(mu = 0, sd = 1),
+                      k = 500)
+
 # checking sd's
-data_lcz %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd = 1
+data_nlc %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd = 1
 ```
 
     ## # A tibble: 25,000 x 4
     ## # Groups:   Asset [50]
     ##    date       Asset    Return    sd
     ##    <date>     <glue>    <dbl> <dbl>
-    ##  1 2021-01-11 Asset_1   0.387 0.968
-    ##  2 2021-01-11 Asset_2   0.270 1.02 
-    ##  3 2021-01-11 Asset_3   0.264 1.03 
-    ##  4 2021-01-11 Asset_4   0.824 1.02 
-    ##  5 2021-01-11 Asset_5   0.187 1.00 
-    ##  6 2021-01-11 Asset_6   0.909 1.02 
-    ##  7 2021-01-11 Asset_7  -0.334 1.01 
-    ##  8 2021-01-11 Asset_8   0.556 1.01 
-    ##  9 2021-01-11 Asset_9   0.369 0.993
-    ## 10 2021-01-11 Asset_10  0.407 0.993
+    ##  1 2021-01-12 Asset_1   0.387 0.968
+    ##  2 2021-01-12 Asset_2   0.270 1.02 
+    ##  3 2021-01-12 Asset_3   0.264 1.03 
+    ##  4 2021-01-12 Asset_4   0.824 1.02 
+    ##  5 2021-01-12 Asset_5   0.187 1.00 
+    ##  6 2021-01-12 Asset_6   0.909 1.02 
+    ##  7 2021-01-12 Asset_7  -0.334 1.01 
+    ##  8 2021-01-12 Asset_8   0.556 1.01 
+    ##  9 2021-01-12 Asset_9   0.369 0.993
+    ## 10 2021-01-12 Asset_10  0.407 0.993
     ## # ... with 24,990 more rows
 
 ``` r
-data_lcnz %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd approx = 0.59
+data_lc %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd approx = 0.58
 ```
 
     ## # A tibble: 25,000 x 4
     ## # Groups:   Asset [50]
     ##    date       Asset     Return    sd
     ##    <date>     <glue>     <dbl> <dbl>
-    ##  1 2021-01-11 Asset_1   0.296  0.580
-    ##  2 2021-01-11 Asset_2  -0.214  0.572
-    ##  3 2021-01-11 Asset_3   0.207  0.568
-    ##  4 2021-01-11 Asset_4   0.118  0.580
-    ##  5 2021-01-11 Asset_5   0.265  0.582
-    ##  6 2021-01-11 Asset_6   0.0234 0.583
-    ##  7 2021-01-11 Asset_7   0.0661 0.570
-    ##  8 2021-01-11 Asset_8   0.0955 0.564
-    ##  9 2021-01-11 Asset_9   0.289  0.569
-    ## 10 2021-01-11 Asset_10  0.478  0.592
+    ##  1 2021-01-12 Asset_1   0.296  0.580
+    ##  2 2021-01-12 Asset_2  -0.214  0.572
+    ##  3 2021-01-12 Asset_3   0.207  0.568
+    ##  4 2021-01-12 Asset_4   0.118  0.580
+    ##  5 2021-01-12 Asset_5   0.265  0.582
+    ##  6 2021-01-12 Asset_6   0.0234 0.583
+    ##  7 2021-01-12 Asset_7   0.0661 0.570
+    ##  8 2021-01-12 Asset_8   0.0955 0.564
+    ##  9 2021-01-12 Asset_9   0.289  0.569
+    ## 10 2021-01-12 Asset_10  0.478  0.592
+    ## # ... with 24,990 more rows
+
+``` r
+data_lco %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd approx = 1
+```
+
+    ## # A tibble: 25,000 x 4
+    ## # Groups:   Asset [50]
+    ##    date       Asset    Return    sd
+    ##    <date>     <glue>    <dbl> <dbl>
+    ##  1 2021-01-12 Asset_1   0.692 1.03 
+    ##  2 2021-01-12 Asset_2   0.169 1.00 
+    ##  3 2021-01-12 Asset_3   0.844 1.01 
+    ##  4 2021-01-12 Asset_4   0.544 1.04 
+    ##  5 2021-01-12 Asset_5   0.449 1.04 
+    ##  6 2021-01-12 Asset_6   0.487 1.04 
+    ##  7 2021-01-12 Asset_7   0.333 1.04 
+    ##  8 2021-01-12 Asset_8   0.520 1.05 
+    ##  9 2021-01-12 Asset_9   1.49  0.981
+    ## 10 2021-01-12 Asset_10  0.750 1.02 
     ## # ... with 24,990 more rows
 
 ``` r
