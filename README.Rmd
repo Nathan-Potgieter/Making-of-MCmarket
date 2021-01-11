@@ -592,7 +592,7 @@ rCopula(1000, galcop) %>% plot()
 
 ## Hybrid Copulas
 
-Tawn's (1988) Theorem: States that a copula is a convex set and every convex combination of existing copula functions is again a copula. 
+Sklar's (1959) Theorem: States that a copula is a convex set and every convex combination of existing copula functions is again a copula. 
 
 Thus, if  $C_1(U_N)$  and  $C_2(U_N)$ are multivariate copula's of dimension D and $w$ is a weighting variable between 0 and 1, then 
 
@@ -600,7 +600,7 @@ Thus, if  $C_1(U_N)$  and  $C_2(U_N)$ are multivariate copula's of dimension D a
 
 is a unique copula. Therefore, a hybrid copula $C(U_N)$ can be created by linearly weighting an Elliptical and Archimedean copula of the same dimension. 
 
-See @ruenzi2011 "Extreme Dependence Structures and the Cross-Section of Expected Stock Returns" page 8 & 9. 
+See @ruenzi2011 "Extreme Dependence Structures and the Cross-Section of Expected Stock Returns" page 8 & 9.
 
 ### Generatimg Some 2D Hybrid Copulas.
 This chunk of code creates and plots some pseudo hybrid copulas by linearly weighting the random numbers generated from a student-t and Clayton copula. 
