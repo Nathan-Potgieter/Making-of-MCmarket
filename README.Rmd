@@ -22,7 +22,7 @@ The aim of this project is to develop a general and easy to use Monte Carlo simu
 
 Elliptical copulas are used to specify the correlation structure in the simulated data and the Archmedian Clayton copula is used induce greater left-tail dependencies.
 
-The data will also be simulated to posses volatility persistence, this way the simulated data can exhbit volatility clusters. This is accomplished by utilizing various ARMA(1,1) + APARCH(1,1) models, the parameters of which can be adjusted to induce alternative risk characteristics. Since APARCH nests at least 7 other volatility models, the user effectively has a wide range of volatility models from which to choose.   
+The data will also be simulated to posses volatility persistence, this way the simulated data can exhibit volatility clusters. This is accomplished by utilizing various ARMA(1,1) + APARCH(1,1) models, the parameters of which can be adjusted to induce alternative risk characteristics. Since APARCH nests at least 7 other volatility models, the user effectively has a wide range of volatility models from which to choose.   
 
 ## Monte Carlo Framework
 The Monte Carlo simulation routine involves the following steps:
