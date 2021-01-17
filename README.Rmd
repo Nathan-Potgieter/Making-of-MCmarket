@@ -187,7 +187,7 @@ gen_corr(D = 60, clusters = "none") %>%
   ggcorrplot::ggcorrplot(title = "No Clusters", hc.order = FALSE)
 gen_corr(D = 60, clusters = "non-overlapping", num_clusters = c(3)) %>% 
   ggcorrplot::ggcorrplot(title = "Non-Overlapping Clusters", hc.order = FALSE)
-gen_corr(D = 60, clusters = "overlapping", num_layers = 4, num_clusters = c(10,5,4,2)) %>% ggcorrplot::ggcorrplot(title = "Overlapping Clusters", hc.order = FALSE)
+gen_corr(D = 60, clusters = "overlapping", num_clusters = c(10,5,4,2)) %>% ggcorrplot::ggcorrplot(title = "Overlapping Clusters", hc.order = FALSE)
 
 ```
 
@@ -469,7 +469,7 @@ the Gaussian and t Elliptal copulas allow us to specify a correlation matrix bef
 # pacman::p_load(copula)
 
 #generating toy corr matrix
-corr <- gen_corr(D = 50, clusters = "overlapping", num_layers = 3, num_clusters = c(10, 5, 2))
+corr <- gen_corr(D = 50, clusters = "overlapping", num_clusters = c(10, 5, 2))
 
 #generating normal and student t copula objects   
 Ncop <- ellipCopula(family = "normal", dispstr = "un", param = P2p(corr), dim = 50)
@@ -1304,7 +1304,7 @@ data %>% group_by(Asset) %>% mutate(mean = mean(Return),
 
 ### sim_market
 
-```{r sim_inno function, eval=FALSE, include=TRUE}
+```{r old sim_inno function, eval=TRUE, include=TRUE}
 #' @title sim_market
 #' @description This function produces a series of returns for an asset market with a
 #' given correlation matrix. The user can choose between the multivariate t and normal
@@ -1455,7 +1455,8 @@ sim_market <- function(corr,
 
 
     # Creating a date vector
-    dates <- rmsfuns::dateconverter(StartDate = Sys.Date(),
+    start_date <- Sys.Date()
+    dates <- rmsfuns::dateconverter(StartDate = start_date,
                                     EndDate = start_date %m+% lubridate::days(k-1),
                                     Transform = "alldays")
 
@@ -1577,7 +1578,7 @@ This code simply tests and demonstrates the functionality of sim_inno.
 ```{r sim_inno test, fig.width=10, fig.height=10, fig.align=TRUE}
 
 
-Corr <- gen_corr(D = 50, clusters = "overlapping", num_layers = 3, num_clusters = c(10,5,2))
+Corr <- gen_corr(D = 50, clusters = "overlapping", num_clusters = c(10,5,2))
 Corr %>% ggcorrplot::ggcorrplot()
 # ----------------------------------------
 # Simulating data with marginal_dist="norm"
@@ -1586,8 +1587,6 @@ set.seed(872154)
 data_norm <- sim_market(corr = Corr, 
                  mv_dist = "t",
                  mv_df = 4,
-                 left_cop_param = 5,
-                 left_cop_weight = 0.2,
                  marginal_dist = "norm",
                  marginal_dist_model = list(mu = 0, sd = 0.02311859),
                  k = 500)
@@ -1646,7 +1645,8 @@ data_lco %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd approx = 1
 ```
 
 # Step 4: Simulating an Ensemble of Asset Markets
- The mc_market function performs the Monte Carlo simulation of asset markets.
+
+The mc_market function performs the Monte Carlo simulation of asset markets.
 
 ## mc_market
 
@@ -1658,7 +1658,7 @@ data_lco %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd approx = 1
 #' The univariate asset return distributions can also be set to normal, student-t or sgt
 #' distributed. Finally, mean and variance persistence can be induced via the parameters of an
 #' ARMA + APARCH model.
-#' @note See examples under sim_market_with_progress for instructions on how to add an on screen
+#' @note See examples under sim_market for instructions on how to add an on screen
 #'  progress bar when performing the Monte Carlo simulation, this is recommended as calculations may
 #'  take a number of minuets.
 #'
@@ -1779,7 +1779,7 @@ mc_market <- function(corr,
 #---------
 #toy corr
 #--------
-corr <- MCmarket::gen_corr(D = 20, clusters = "overlapping", num_clusters = c(2,5,4), num_layers = 3 )
+corr <- MCmarket::gen_corr(D = 20, clusters = "overlapping", num_clusters = c(2,5,4))
 #--------------
 #emperical corr
 #--------------
@@ -1793,7 +1793,7 @@ corr <- MCmarket::gen_corr(D = 20, clusters = "overlapping", num_clusters = c(2,
 set.seed(521554)
 mc_data <- mc_market(corr, N = 10, 
                      k = 500, marginal_dist = "t",
-                     left_cop_weight = 0.1)
+                     list = FALSE)
 
 # Plotting reasults
 mc_data %>% 
@@ -1809,227 +1809,16 @@ mc_data %>%
   theme(legend.position = "none") 
 ```
 
-## sim_market_with_progress
-
-This is used if user wants to see a progress bar when performing MC simulations.
-
-```{r sim_market_with_progress, eval=FALSE, include=TRUE}
-#' @title sim_market_with_progress
-#' @description This is an alternative version of the sim_market function that
-#' includes functionality to include a progress bar when used in purrr::map functions
-#' @note  See ??sim_market for details on use.
-#' @return a tidy tibble containing a date, Asset and Return column.
-#'
-#' @importFrom copula ellipCopula archmCopula rcopula
-#' @importFrom glue glue
-#' @importFrom sgt qsgt
-#' @importFrom lubridate '%m+%' days
-#' @importFrom tidyr gather
-#' @import dplyr
-#' @import purrr
-#'
-#' @examples
-#'
-#' \dontrun{
-#'
-#' library(MCmarket)
-#' library(tidyverse)
-#'
-#' ### creating a correlation matrix to use as input in sim_asset_market
-#' corr <- gen_corr(N = 20, Clusters = "none")
-#'
-#'
-#' N <- 100
-#' pb <- dplyr::progress_estimated(N)   # this must be named pb
-#' market <-
-#'       map_dfr(1:N,
-#'               ~sim_market_with_progress(corr),
-#'               .id = "Universe")
-#'
-#' }
-#' @export
-sim_market_with_progress <- function(corr,
-                                     k = 252,
-                                     mv_dist = "t",
-                                     mv_df = 3,
-                                     left_cop_weight = 0,
-                                     left_cop_param = 4,
-                                     marginal_dist = "norm",
-                                     marginal_dist_model = NULL,
-                                     ts_model = list()
-) {
-
-    # Tick to progress bar
-    pb$tick()$print()
-
-    # sim_market
-    N <- nrow(corr)
-    k <- k + 1   # extra room for sim_garch to as a lag.
-    Cor <- P2p(corr)
-
-    # Specifying  Copulas
-    # elliptical
-    if(!(mv_dist %in% c("norm", "t"))) stop("Please supply a valid argument for mv_dist")
-    else
-        if (mv_dist == "t") {
-            if (is.null(mv_df)) stop('Please supply a valid degrees of freedom parameter when using mv_dist = "t".')
-            Ecop <- ellipCopula(family = "t",
-                                dispstr = "un",
-                                df = mv_df,
-                                param = Cor,
-                                dim = N)
-        } else
-            if (mv_dist == "norm") {
-                Ecop <- ellipCopula(family = "normal",
-                                    dispstr = "un",
-                                    param = Cor,
-                                    dim = N)
-            }
-
-    # Left-cop (Archemedian copula)
-    if (left_cop_weight < 0|left_cop_weight > 1) stop("Please provide a valid left_cop_weight between 0 and 1")
-    if (left_cop_weight != 0) {
-        Acop <- archmCopula(family = "clayton",
-                            param = left_cop_param,
-                            dim = N)
-    }
-
-    # Generating random (uniformly distributed) draws from hybrid copula's
-    if (left_cop_weight == 0) {
-        data <- rCopula(k, Ecop)
-    } else
-        if(left_cop_weight == 1) {
-            data <- rCopula(k, Acop)
-        } else {
-            data <- (left_cop_weight*rCopula(k, Acop) + (1-left_cop_weight)*rCopula(k, Ecop))
-        }
-
-
-    # Creating a date vector
-    start_date <- Sys.Date()
-    dates <- rmsfuns::dateconverter(StartDate = start_date,
-                                    EndDate = start_date %m+% lubridate::days(k-1),
-                                    Transform = "alldays")
-
-    # Making Tidy & adding date column
-    data <- as_tibble(data) %>%
-        purrr::set_names(glue::glue("Asset_{1:ncol(data)}")) %>%
-        mutate(date = dates) %>%
-        gather(Asset, Value, -date)
-
-
-    if (!(marginal_dist %in% c("norm", "t", "sgt", "unif"))) stop ("Please supply a valid marginal_dist argument")
-
-    if (marginal_dist == "unif") return(data)
-
-    # Warnings
-    if (marginal_dist == "norm" & is.null(marginal_dist_model)) marginal_dist_model <- list(mu=0, sd = 1)
-    if (marginal_dist == "t" & is.null(marginal_dist_model))  marginal_dist_model <- list(mu=0, df = 5)
-    if (marginal_dist == "sgt" & is.null(marginal_dist_model)) stop ('Please supply a valid marginal_dist_model when using marginal_dist="sgt".')
-
-    #Converting Uniform marginal distributions to norm, t or sgt.
-    args <- tibble(Asset = glue::glue("Asset_{1:N}")) %>%
-        mutate(mean = marginal_dist_model$mu,
-               sd = marginal_dist_model$sd,
-               ncp = marginal_dist_model$ncp,
-               df = marginal_dist_model$df,
-               lambda = marginal_dist_model$lambda,
-               p = marginal_dist_model$p,
-               q = marginal_dist_model$q)
-
-    if (marginal_dist == "norm") {
-
-        if(is.null(marginal_dist_model$mu)) stop('Please supply a valid mu parameter when using marginal_dist = "norm".')
-        if(is.null(marginal_dist_model$sd)) stop('Please supply a valid sd parameter when using marginal_dist = "norm".')
-
-        data <- data %>% left_join(., args, by = "Asset") %>%
-            group_by(Asset) %>%  arrange(date) %>%
-            mutate(Return =  qnorm(Value, mean, sd)) %>%
-            select(date, Asset, Return)
-
-    } else
-        if (marginal_dist == "t") {
-
-            if(is.null(marginal_dist_model$ncp)) stop('Please supply a valid ncp parameter when using marginal_dist = "t".')
-            if(is.null(marginal_dist_model$df)) stop('Please supply a valid df parameter when using marginal_dist = "t".')
-
-            data <- data %>% left_join(., args, by = "Asset") %>%
-                group_by(Asset) %>%  arrange(date) %>%
-                mutate(Return = qt(Value, df =  df, ncp =  ncp)) %>%
-                select(date, Asset, Return)
-
-        } else
-            if (marginal_dist == "sgt") {
-
-                if (is.null(marginal_dist_model$mu)) marginal_dist_model$mu <- 0
-                if (is.null(marginal_dist_model$sd)) marginal_dist_model$sd <- 1
-                if (is.null(marginal_dist_model$lambda)|
-                    is.null(marginal_dist_model$p)|
-                    is.null(marginal_dist_model$q)) stop('Please supply valid arguments for lambda, p and q when using marginal_dist = "sgt".')
-
-                data <- data %>% left_join(., args, by = "Asset") %>%
-                    group_by(Asset) %>% arrange(date) %>%
-                    mutate(Return = qsgt(Value, mean, sd, lambda, p, q)) %>%
-                    select(date, Asset, Return)
-
-            }
-
-    if (is.null(ts_model)) {
-
-        data <- data %>% dplyr::filter(date > first(date))
-        return(data)
-
-    } else {
-
-        # Warnings
-        if (!is.null(ts_model$omega) & length(ts_model$omega) != 1 & length(ts_model$omega) != N) stop("Please supply a valid vector length for omega. Must be of length 1 or ncol(corr).")
-        if (!is.null(ts_model$alpha) & length(ts_model$alpha) != 1 & length(ts_model$alpha) != N) stop("Please supply a valid vector length for alpha. Must be of length 1 or ncol(corr).")
-        if (!is.null(ts_model$gamma) & length(ts_model$gamma) != 1 & length(ts_model$gamma) != N) stop("Please supply a valid vector length for gamma. Must be of length 1 or ncol(corr).")
-        if (!is.null(ts_model$beta) & length(ts_model$beta) != 1 & length(ts_model$beta) != N) stop("Please supply a valid vector length for beta. Must be of length 1 or ncol(corr).")
-        if (!is.null(ts_model$mu) & length(ts_model$mu) != 1 & length(ts_model$mu) != N) stop("Please supply a valid vector length for mu. Must be of length 1 or ncol(corr).")
-        if (!is.null(ts_model$ar) & length(ts_model$ar) != 1 & length(ts_model$ar) != N) stop("Please supply a valid vector length for ar. Must be of length 1 or ncol(corr).")
-        if (!is.null(ts_model$ma) & length(ts_model$ma) != 1 & length(ts_model$ma) != N) stop("Please supply a valid vector length for ma. Must be of length 1 or ncol(corr).")
-        if (!is.null(ts_model$delta) & length(ts_model$delta) != 1 & length(ts_model$delta) != N) stop("Please supply a valid vector length for delta. Must be of length 1 or ncol(corr).")
-
-        # Inducing mean and/or variance persistence
-
-        # Tibble with with garh parameters and defaults
-        ts_args <- tibble(Asset = glue::glue("Asset_{1:N}")) %>%
-            mutate(omega = if (is.null(ts_model$omega)) {5e-04} else {ts_model$omega},
-                   alpha = if (is.null(ts_model$alpha)) {0} else {ts_model$alpha},
-                   gamma = if (is.null(ts_model$gamma)) {0}  else {ts_model$gamma},
-                   beta = if (is.null(ts_model$beta)) {0} else {ts_model$beta},
-                   mu = if (is.null(ts_model$mu)) {0} else {ts_model$mu},   #changed form NULL to 0
-                   ar = if (is.null(ts_model$ar)) {0} else {ts_model$ar},
-                   ma = if (is.null(ts_model$ma)) {0} else {ts_model$ma},
-                   delta = if (is.null(ts_model$delta)) {2} else {ts_model$delta})
-
-        # Inducing garch properties
-        data <- data %>% left_join(., ts_args, by = "Asset") %>%
-            arrange(date) %>% group_by(Asset) %>%
-            mutate(Return = sim_garch(innovations = Return,
-                                      omega = omega,
-                                      alpha = alpha,
-                                      gamma = gamma,
-                                      beta = beta,
-                                      mu = mu,
-                                      ar = ar,
-                                      ma = ma,
-                                      delta = delta)) %>% na.omit() %>%
-            select(date, Asset, Return)
-        return(data)
-    }
-}
-```
-
 ### sim_market_with_progress Example
 
-```{r sim_market_with_progress example}
-N <- 10
+```{r sim_market with progress bar example}
+rm(sim_market)
+library(MCmarket)
+N <- 100
 pb <- dplyr::progress_estimated(N)   # this must be named pb
 market <-
        map_dfr(1:N,
-               ~sim_market_with_progress(diag(10)),
+               ~sim_market(diag(10), progress = TRUE),
                .id = "Universe")
 
 object.size(x = market) %>% print(units = "Mb")

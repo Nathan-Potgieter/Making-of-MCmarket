@@ -25,7 +25,7 @@ simulated data and the Archmedian Clayton copula is used induce greater
 left-tail dependencies.
 
 The data will also be simulated to posses volatility persistence, this
-way the simulated data can exhbit volatility clusters. This is
+way the simulated data can exhibit volatility clusters. This is
 accomplished by utilizing various ARMA(1,1) + APARCH(1,1) models, the
 parameters of which can be adjusted to induce alternative risk
 characteristics. Since APARCH nests at least 7 other volatility models,
@@ -227,7 +227,7 @@ gen_corr(D = 60, clusters = "non-overlapping", num_clusters = c(3)) %>%
 <img src="README_files/figure-gfm/using gen_corr-2.png" width="80%" height="80%" />
 
 ``` r
-gen_corr(D = 60, clusters = "overlapping", num_layers = 4, num_clusters = c(10,5,4,2)) %>% ggcorrplot::ggcorrplot(title = "Overlapping Clusters", hc.order = FALSE)
+gen_corr(D = 60, clusters = "overlapping", num_clusters = c(10,5,4,2)) %>% ggcorrplot::ggcorrplot(title = "Overlapping Clusters", hc.order = FALSE)
 ```
 
 <img src="README_files/figure-gfm/using gen_corr-3.png" width="80%" height="80%" />
@@ -527,7 +527,7 @@ structure. The chunk of code below demonstrates this functionality.
 # pacman::p_load(copula)
 
 #generating toy corr matrix
-corr <- gen_corr(D = 50, clusters = "overlapping", num_layers = 3, num_clusters = c(10, 5, 2))
+corr <- gen_corr(D = 50, clusters = "overlapping", num_clusters = c(10, 5, 2))
 
 #generating normal and student t copula objects   
 Ncop <- ellipCopula(family = "normal", dispstr = "un", param = P2p(corr), dim = 50)
@@ -564,14 +564,14 @@ p_load(printr)
 summary(rn)
 ```
 
-|  | V1               | V2               | V3               | V4               | V5               | V6               | V7                | V8               | V9               | V10              | V11               | V12             | V13               | V14               | V15               | V16              | V17              | V18               | V19              | V20               | V21               | V22               | V23               | V24             | V25              | V26              | V27              | V28              | V29              | V30              | V31              | V32              | V33              | V34               | V35              | V36              | V37              | V38              | V39              | V40              | V41              | V42              | V43              | V44             | V45              | V46              | V47              | V48              | V49              | V50              |
-| :- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :---------------- | :--------------- | :--------------- | :--------------- | :---------------- | :-------------- | :---------------- | :---------------- | :---------------- | :--------------- | :--------------- | :---------------- | :--------------- | :---------------- | :---------------- | :---------------- | :---------------- | :-------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :---------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :-------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- |
-|  | Min. :0.007098   | Min. :0.003022   | Min. :0.001259   | Min. :0.001032   | Min. :0.001339   | Min. :0.008517   | Min. :0.0000196   | Min. :0.005243   | Min. :0.002634   | Min. :0.006741   | Min. :0.0002914   | Min. :0.01184   | Min. :0.0008023   | Min. :0.0000349   | Min. :0.0000142   | Min. :0.002799   | Min. :0.004945   | Min. :0.0000175   | Min. :0.003786   | Min. :0.0000386   | Min. :0.0001844   | Min. :0.0007961   | Min. :0.0009481   | Min. :0.00299   | Min. :0.002662   | Min. :0.004609   | Min. :0.003124   | Min. :0.001632   | Min. :0.004241   | Min. :0.001585   | Min. :0.002885   | Min. :0.003994   | Min. :0.003331   | Min. :0.0009928   | Min. :0.002219   | Min. :0.001089   | Min. :0.005954   | Min. :0.003879   | Min. :0.003733   | Min. :0.007477   | Min. :0.002481   | Min. :0.004893   | Min. :0.005576   | Min. :0.02025   | Min. :0.002443   | Min. :0.005205   | Min. :0.001957   | Min. :0.003112   | Min. :0.001037   | Min. :0.005138   |
-|  | 1st Qu.:0.295501 | 1st Qu.:0.234431 | 1st Qu.:0.271546 | 1st Qu.:0.300009 | 1st Qu.:0.278818 | 1st Qu.:0.248640 | 1st Qu.:0.3049631 | 1st Qu.:0.332494 | 1st Qu.:0.243788 | 1st Qu.:0.309240 | 1st Qu.:0.2776770 | 1st Qu.:0.27823 | 1st Qu.:0.3168528 | 1st Qu.:0.2791146 | 1st Qu.:0.2366060 | 1st Qu.:0.258238 | 1st Qu.:0.275312 | 1st Qu.:0.2638479 | 1st Qu.:0.297065 | 1st Qu.:0.2632021 | 1st Qu.:0.2555626 | 1st Qu.:0.2354916 | 1st Qu.:0.2833655 | 1st Qu.:0.25460 | 1st Qu.:0.251036 | 1st Qu.:0.249656 | 1st Qu.:0.271992 | 1st Qu.:0.204907 | 1st Qu.:0.211654 | 1st Qu.:0.206260 | 1st Qu.:0.248430 | 1st Qu.:0.264662 | 1st Qu.:0.248683 | 1st Qu.:0.2386767 | 1st Qu.:0.243765 | 1st Qu.:0.231889 | 1st Qu.:0.244227 | 1st Qu.:0.250977 | 1st Qu.:0.229075 | 1st Qu.:0.237658 | 1st Qu.:0.197966 | 1st Qu.:0.248643 | 1st Qu.:0.253502 | 1st Qu.:0.22658 | 1st Qu.:0.234969 | 1st Qu.:0.210509 | 1st Qu.:0.268128 | 1st Qu.:0.228985 | 1st Qu.:0.221410 | 1st Qu.:0.201689 |
-|  | Median :0.531288 | Median :0.537359 | Median :0.524745 | Median :0.530231 | Median :0.532713 | Median :0.535569 | Median :0.5195331 | Median :0.558365 | Median :0.516122 | Median :0.466524 | Median :0.5125215 | Median :0.54756 | Median :0.5012081 | Median :0.5391057 | Median :0.4959909 | Median :0.503865 | Median :0.522426 | Median :0.5273840 | Median :0.528557 | Median :0.5216921 | Median :0.4966922 | Median :0.4823789 | Median :0.5206706 | Median :0.51662 | Median :0.465475 | Median :0.508347 | Median :0.507671 | Median :0.470082 | Median :0.473701 | Median :0.489791 | Median :0.484261 | Median :0.470341 | Median :0.461106 | Median :0.4635581 | Median :0.462741 | Median :0.468923 | Median :0.454717 | Median :0.464861 | Median :0.474449 | Median :0.485156 | Median :0.413951 | Median :0.454282 | Median :0.467252 | Median :0.49336 | Median :0.458083 | Median :0.463587 | Median :0.479387 | Median :0.455441 | Median :0.491378 | Median :0.449215 |
-|  | Mean :0.513770   | Mean :0.508038   | Mean :0.513361   | Mean :0.526467   | Mean :0.526355   | Mean :0.516185   | Mean :0.5222495   | Mean :0.532535   | Mean :0.514388   | Mean :0.501104   | Mean :0.5205139   | Mean :0.51675   | Mean :0.5086903   | Mean :0.5248778   | Mean :0.4945815   | Mean :0.506240   | Mean :0.516782   | Mean :0.5065281   | Mean :0.524385   | Mean :0.5176175   | Mean :0.5001963   | Mean :0.4960548   | Mean :0.5142493   | Mean :0.50909   | Mean :0.481280   | Mean :0.509427   | Mean :0.519574   | Mean :0.475991   | Mean :0.493095   | Mean :0.485602   | Mean :0.495493   | Mean :0.487197   | Mean :0.475711   | Mean :0.4764815   | Mean :0.477529   | Mean :0.489937   | Mean :0.473622   | Mean :0.482252   | Mean :0.483457   | Mean :0.489008   | Mean :0.469082   | Mean :0.473770   | Mean :0.491785   | Mean :0.48662   | Mean :0.472151   | Mean :0.471089   | Mean :0.487564   | Mean :0.477764   | Mean :0.493814   | Mean :0.470146   |
-|  | 3rd Qu.:0.754066 | 3rd Qu.:0.756944 | 3rd Qu.:0.776006 | 3rd Qu.:0.763817 | 3rd Qu.:0.779601 | 3rd Qu.:0.758171 | 3rd Qu.:0.7424127 | 3rd Qu.:0.763789 | 3rd Qu.:0.767240 | 3rd Qu.:0.740969 | 3rd Qu.:0.7936023 | 3rd Qu.:0.76245 | 3rd Qu.:0.7543526 | 3rd Qu.:0.7835063 | 3rd Qu.:0.7606892 | 3rd Qu.:0.757275 | 3rd Qu.:0.751687 | 3rd Qu.:0.7301500 | 3rd Qu.:0.776602 | 3rd Qu.:0.7985304 | 3rd Qu.:0.7616902 | 3rd Qu.:0.7620283 | 3rd Qu.:0.7606433 | 3rd Qu.:0.75200 | 3rd Qu.:0.726562 | 3rd Qu.:0.770438 | 3rd Qu.:0.771216 | 3rd Qu.:0.722104 | 3rd Qu.:0.789659 | 3rd Qu.:0.717873 | 3rd Qu.:0.746415 | 3rd Qu.:0.692572 | 3rd Qu.:0.709877 | 3rd Qu.:0.7188877 | 3rd Qu.:0.735197 | 3rd Qu.:0.745344 | 3rd Qu.:0.709402 | 3rd Qu.:0.710031 | 3rd Qu.:0.718005 | 3rd Qu.:0.718350 | 3rd Qu.:0.716769 | 3rd Qu.:0.700996 | 3rd Qu.:0.749123 | 3rd Qu.:0.71626 | 3rd Qu.:0.710849 | 3rd Qu.:0.706304 | 3rd Qu.:0.712982 | 3rd Qu.:0.749284 | 3rd Qu.:0.746672 | 3rd Qu.:0.711019 |
-|  | Max. :0.994789   | Max. :0.998698   | Max. :0.998652   | Max. :0.997828   | Max. :0.995730   | Max. :0.993855   | Max. :0.9955389   | Max. :0.996432   | Max. :0.994969   | Max. :0.996501   | Max. :0.9954856   | Max. :0.99577   | Max. :0.9851690   | Max. :0.9954198   | Max. :0.9903958   | Max. :0.995059   | Max. :0.996812   | Max. :0.9928489   | Max. :0.994940   | Max. :0.9915388   | Max. :0.9985925   | Max. :0.9996857   | Max. :0.9950239   | Max. :0.99940   | Max. :0.989287   | Max. :0.999517   | Max. :0.991402   | Max. :0.994119   | Max. :0.996924   | Max. :0.989847   | Max. :0.996223   | Max. :0.999385   | Max. :0.997310   | Max. :0.9928371   | Max. :0.996088   | Max. :0.988939   | Max. :0.998540   | Max. :0.997685   | Max. :0.996754   | Max. :0.989053   | Max. :0.996750   | Max. :0.991693   | Max. :0.998723   | Max. :0.99608   | Max. :0.999002   | Max. :0.997470   | Max. :0.999760   | Max. :0.997560   | Max. :0.999501   | Max. :0.996479   |
+|  | V1               | V2              | V3               | V4               | V5                | V6               | V7                | V8             | V9              | V10              | V11              | V12             | V13              | V14               | V15               | V16              | V17              | V18               | V19              | V20              | V21               | V22               | V23               | V24              | V25             | V26              | V27              | V28             | V29              | V30              | V31              | V32            | V33              | V34               | V35              | V36               | V37              | V38              | V39              | V40              | V41              | V42              | V43              | V44             | V45              | V46              | V47              | V48              | V49              | V50              |
+| :- | :--------------- | :-------------- | :--------------- | :--------------- | :---------------- | :--------------- | :---------------- | :------------- | :-------------- | :--------------- | :--------------- | :-------------- | :--------------- | :---------------- | :---------------- | :--------------- | :--------------- | :---------------- | :--------------- | :--------------- | :---------------- | :---------------- | :---------------- | :--------------- | :-------------- | :--------------- | :--------------- | :-------------- | :--------------- | :--------------- | :--------------- | :------------- | :--------------- | :---------------- | :--------------- | :---------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :-------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- | :--------------- |
+|  | Min. :0.003789   | Min. :0.00633   | Min. :0.001209   | Min. :0.001334   | Min. :0.0008255   | Min. :0.004738   | Min. :0.0005907   | Min. :0.0029   | Min. :0.01236   | Min. :0.003844   | Min. :0.001529   | Min. :0.01036   | Min. :0.003309   | Min. :0.0003049   | Min. :0.0003147   | Min. :0.003135   | Min. :0.002744   | Min. :0.0000119   | Min. :0.001564   | Min. :0.000024   | Min. :0.0001738   | Min. :0.0006254   | Min. :0.0007298   | Min. :0.002491   | Min. :0.00183   | Min. :0.003089   | Min. :0.004845   | Min. :0.00258   | Min. :0.004175   | Min. :0.001231   | Min. :0.006494   | Min. :0.0136   | Min. :0.005554   | Min. :0.0003943   | Min. :0.002071   | Min. :0.0006909   | Min. :0.003993   | Min. :0.004728   | Min. :0.002004   | Min. :0.009047   | Min. :0.003131   | Min. :0.003676   | Min. :0.005901   | Min. :0.01605   | Min. :0.001985   | Min. :0.001721   | Min. :0.009545   | Min. :0.004709   | Min. :0.001793   | Min. :0.004227   |
+|  | 1st Qu.:0.264266 | 1st Qu.:0.22660 | 1st Qu.:0.266089 | 1st Qu.:0.271002 | 1st Qu.:0.2587489 | 1st Qu.:0.287033 | 1st Qu.:0.2930791 | 1st Qu.:0.3019 | 1st Qu.:0.27377 | 1st Qu.:0.298196 | 1st Qu.:0.278910 | 1st Qu.:0.29040 | 1st Qu.:0.256124 | 1st Qu.:0.2773664 | 1st Qu.:0.2601362 | 1st Qu.:0.268616 | 1st Qu.:0.258252 | 1st Qu.:0.2469655 | 1st Qu.:0.264870 | 1st Qu.:0.271307 | 1st Qu.:0.2447171 | 1st Qu.:0.2377156 | 1st Qu.:0.2834407 | 1st Qu.:0.261445 | 1st Qu.:0.24456 | 1st Qu.:0.260355 | 1st Qu.:0.266097 | 1st Qu.:0.22359 | 1st Qu.:0.213969 | 1st Qu.:0.226501 | 1st Qu.:0.217059 | 1st Qu.:0.2573 | 1st Qu.:0.237995 | 1st Qu.:0.2270943 | 1st Qu.:0.228558 | 1st Qu.:0.2615509 | 1st Qu.:0.227972 | 1st Qu.:0.270511 | 1st Qu.:0.245802 | 1st Qu.:0.262503 | 1st Qu.:0.234612 | 1st Qu.:0.228202 | 1st Qu.:0.245781 | 1st Qu.:0.22760 | 1st Qu.:0.247869 | 1st Qu.:0.197376 | 1st Qu.:0.265055 | 1st Qu.:0.226628 | 1st Qu.:0.229997 | 1st Qu.:0.229532 |
+|  | Median :0.528074 | Median :0.54573 | Median :0.558916 | Median :0.518284 | Median :0.5600216 | Median :0.528676 | Median :0.5460156 | Median :0.5653 | Median :0.52971 | Median :0.493048 | Median :0.512379 | Median :0.51556 | Median :0.520155 | Median :0.5338151 | Median :0.5217817 | Median :0.491348 | Median :0.536240 | Median :0.5212094 | Median :0.544127 | Median :0.509699 | Median :0.4964993 | Median :0.4774210 | Median :0.5057867 | Median :0.516828 | Median :0.46991 | Median :0.523842 | Median :0.538164 | Median :0.47795 | Median :0.527411 | Median :0.507615 | Median :0.494630 | Median :0.4839 | Median :0.479687 | Median :0.4514849 | Median :0.464199 | Median :0.4744518 | Median :0.452618 | Median :0.474706 | Median :0.461307 | Median :0.494529 | Median :0.452390 | Median :0.488225 | Median :0.504749 | Median :0.50125 | Median :0.470472 | Median :0.473256 | Median :0.458971 | Median :0.462113 | Median :0.457879 | Median :0.451507 |
+|  | Mean :0.514392   | Mean :0.50861   | Mean :0.518201   | Mean :0.526097   | Mean :0.5271120   | Mean :0.517097   | Mean :0.5236607   | Mean :0.5301   | Mean :0.51770   | Mean :0.509647   | Mean :0.525185   | Mean :0.52038   | Mean :0.513376   | Mean :0.5272407   | Mean :0.5013516   | Mean :0.501415   | Mean :0.513850   | Mean :0.5034275   | Mean :0.520418   | Mean :0.512833   | Mean :0.4964674   | Mean :0.4926329   | Mean :0.5081371   | Mean :0.504310   | Mean :0.48028   | Mean :0.515371   | Mean :0.524248   | Mean :0.48603   | Mean :0.502727   | Mean :0.493647   | Mean :0.488203   | Mean :0.4782   | Mean :0.469891   | Mean :0.4703938   | Mean :0.468896   | Mean :0.4972494   | Mean :0.482492   | Mean :0.489755   | Mean :0.493414   | Mean :0.497577   | Mean :0.480867   | Mean :0.481536   | Mean :0.497383   | Mean :0.49347   | Mean :0.478911   | Mean :0.467169   | Mean :0.475492   | Mean :0.470350   | Mean :0.481197   | Mean :0.464058   |
+|  | 3rd Qu.:0.747871 | 3rd Qu.:0.76296 | 3rd Qu.:0.755723 | 3rd Qu.:0.780670 | 3rd Qu.:0.7738236 | 3rd Qu.:0.772948 | 3rd Qu.:0.7334884 | 3rd Qu.:0.7670 | 3rd Qu.:0.75039 | 3rd Qu.:0.770164 | 3rd Qu.:0.783701 | 3rd Qu.:0.76716 | 3rd Qu.:0.746077 | 3rd Qu.:0.7742346 | 3rd Qu.:0.7580183 | 3rd Qu.:0.734754 | 3rd Qu.:0.770402 | 3rd Qu.:0.7552704 | 3rd Qu.:0.782779 | 3rd Qu.:0.769645 | 3rd Qu.:0.7584466 | 3rd Qu.:0.7497944 | 3rd Qu.:0.7286707 | 3rd Qu.:0.760582 | 3rd Qu.:0.72562 | 3rd Qu.:0.786900 | 3rd Qu.:0.788405 | 3rd Qu.:0.76117 | 3rd Qu.:0.810005 | 3rd Qu.:0.732214 | 3rd Qu.:0.730686 | 3rd Qu.:0.7014 | 3rd Qu.:0.690186 | 3rd Qu.:0.7193733 | 3rd Qu.:0.733735 | 3rd Qu.:0.7467014 | 3rd Qu.:0.747865 | 3rd Qu.:0.727367 | 3rd Qu.:0.740362 | 3rd Qu.:0.712695 | 3rd Qu.:0.716353 | 3rd Qu.:0.705756 | 3rd Qu.:0.746101 | 3rd Qu.:0.73634 | 3rd Qu.:0.724313 | 3rd Qu.:0.735372 | 3rd Qu.:0.718441 | 3rd Qu.:0.703526 | 3rd Qu.:0.723494 | 3rd Qu.:0.710275 |
+|  | Max. :0.992490   | Max. :0.99950   | Max. :0.996827   | Max. :0.993144   | Max. :0.9946405   | Max. :0.995707   | Max. :0.9979940   | Max. :0.9969   | Max. :0.99686   | Max. :0.998054   | Max. :0.997910   | Max. :0.99803   | Max. :0.990757   | Max. :0.9968406   | Max. :0.9941528   | Max. :0.993693   | Max. :0.998193   | Max. :0.9954734   | Max. :0.985183   | Max. :0.987889   | Max. :0.9979575   | Max. :0.9995434   | Max. :0.9973505   | Max. :0.999236   | Max. :0.99626   | Max. :0.999496   | Max. :0.993679   | Max. :0.99502   | Max. :0.996348   | Max. :0.993499   | Max. :0.993373   | Max. :0.9993   | Max. :0.996742   | Max. :0.9913225   | Max. :0.991620   | Max. :0.9863268   | Max. :0.997131   | Max. :0.999298   | Max. :0.998414   | Max. :0.993464   | Max. :0.997222   | Max. :0.990074   | Max. :0.999006   | Max. :0.99674   | Max. :0.999628   | Max. :0.990437   | Max. :0.998647   | Max. :0.997682   | Max. :0.997730   | Max. :0.997622   |
 
 ``` r
 p1
@@ -713,7 +713,7 @@ rCopula(1000, galcop) %>% plot()
 
 ## Hybrid Copulas
 
-Tawn’s (1988) Theorem: States that a copula is a convex set and every
+Sklar’s (1959) Theorem: States that a copula is a convex set and every
 convex combination of existing copula functions is again a copula.
 
 Thus, if ![C\_1(U\_N)](https://latex.codecogs.com/png.latex?C_1%28U_N%29
@@ -1107,16 +1107,16 @@ data %>% group_by(Asset) %>% mutate(mean = mean(Return),
     ## # Groups:   Asset [10]
     ##    date       Asset    Return     mean    sd
     ##    <date>     <chr>     <dbl>    <dbl> <dbl>
-    ##  1 2021-01-11 Asset_1  -1.03   0.0341  1.02 
-    ##  2 2021-01-11 Asset_2  -0.557  0.0150  1.03 
-    ##  3 2021-01-11 Asset_3  -0.301  0.0212  1.01 
-    ##  4 2021-01-11 Asset_4  -1.39   0.0160  1.02 
-    ##  5 2021-01-11 Asset_5  -0.509  0.0262  1.01 
-    ##  6 2021-01-11 Asset_6  -0.597 -0.00147 0.954
-    ##  7 2021-01-11 Asset_7  -0.939  0.0150  0.953
-    ##  8 2021-01-11 Asset_8  -0.930 -0.00421 0.954
-    ##  9 2021-01-11 Asset_9  -0.935  0.0107  0.934
-    ## 10 2021-01-11 Asset_10 -1.04  -0.00137 0.957
+    ##  1 2021-01-17 Asset_1  -1.19   0.0425  1.02 
+    ##  2 2021-01-17 Asset_2  -0.251  0.00429 1.02 
+    ##  3 2021-01-17 Asset_3   0.259  0.0168  0.999
+    ##  4 2021-01-17 Asset_4  -1.91   0.00639 1.02 
+    ##  5 2021-01-17 Asset_5  -0.156  0.0267  1.00 
+    ##  6 2021-01-17 Asset_6  -0.181 -0.00721 0.972
+    ##  7 2021-01-17 Asset_7  -0.865  0.0258  0.963
+    ##  8 2021-01-17 Asset_8  -0.847 -0.0127  0.963
+    ##  9 2021-01-17 Asset_9  -0.859  0.0172  0.928
+    ## 10 2021-01-17 Asset_10 -1.06  -0.00700 0.972
     ## # ... with 9,990 more rows
 
 ``` r
@@ -1211,18 +1211,18 @@ data %>% group_by(Asset) %>% mutate(mean = mean(Return),
 
     ## # A tibble: 10,000 x 5
     ## # Groups:   Asset [10]
-    ##    date       Asset    Return      mean    sd
-    ##    <date>     <chr>     <dbl>     <dbl> <dbl>
-    ##  1 2021-01-11 Asset_1   0.188 -0.0154   0.588
-    ##  2 2021-01-11 Asset_2   0.322  0.00708  0.591
-    ##  3 2021-01-11 Asset_3   0.581 -0.00428  0.598
-    ##  4 2021-01-11 Asset_4   0.266 -0.00223  0.606
-    ##  5 2021-01-11 Asset_5   0.517 -0.00536  0.598
-    ##  6 2021-01-11 Asset_6  -0.594  0.00647  0.596
-    ##  7 2021-01-11 Asset_7  -0.883  0.0146   0.596
-    ##  8 2021-01-11 Asset_8  -0.908 -0.000244 0.585
-    ##  9 2021-01-11 Asset_9  -0.738  0.0118   0.590
-    ## 10 2021-01-11 Asset_10 -0.866 -0.00201  0.599
+    ##    date       Asset     Return     mean    sd
+    ##    <date>     <chr>      <dbl>    <dbl> <dbl>
+    ##  1 2021-01-17 Asset_1   0.0251 -0.0223  0.585
+    ##  2 2021-01-17 Asset_2   0.251   0.0142  0.587
+    ##  3 2021-01-17 Asset_3   0.422  -0.00467 0.603
+    ##  4 2021-01-17 Asset_4   0.279  -0.00350 0.609
+    ##  5 2021-01-17 Asset_5   0.528  -0.00340 0.600
+    ##  6 2021-01-17 Asset_6  -0.560   0.00799 0.602
+    ##  7 2021-01-17 Asset_7  -0.860   0.0220  0.603
+    ##  8 2021-01-17 Asset_8  -0.733  -0.00430 0.586
+    ##  9 2021-01-17 Asset_9  -0.728   0.00940 0.587
+    ## 10 2021-01-17 Asset_10 -0.829  -0.00975 0.606
     ## # ... with 9,990 more rows
 
 ### sim\_market
@@ -1377,7 +1377,8 @@ sim_market <- function(corr,
         }
 
     # Creating a date vector
-    dates <- rmsfuns::dateconverter(StartDate = Sys.Date(),
+    start_date <- Sys.Date()
+    dates <- rmsfuns::dateconverter(StartDate = start_date,
                                     EndDate = start_date %m+% lubridate::days(k-1),
                                     Transform = "alldays")
 
@@ -1496,7 +1497,7 @@ sim_market <- function(corr,
 This code simply tests and demonstrates the functionality of sim\_inno.
 
 ``` r
-Corr <- gen_corr(D = 50, clusters = "overlapping", num_layers = 3, num_clusters = c(10,5,2))
+Corr <- gen_corr(D = 50, clusters = "overlapping", num_clusters = c(10,5,2))
 Corr %>% ggcorrplot::ggcorrplot()
 ```
 
@@ -1510,17 +1511,10 @@ set.seed(872154)
 data_norm <- sim_market(corr = Corr, 
                  mv_dist = "t",
                  mv_df = 4,
-                 left_cop_param = 5,
-                 left_cop_weight = 0.2,
                  marginal_dist = "norm",
                  marginal_dist_model = list(mu = 0, sd = 0.02311859),
                  k = 500)
-```
 
-    ## Warning in rmvnorm(n, sigma = sigma, ...): sigma is numerically not positive
-    ## semidefinite
-
-``` r
 # ----------------------------------------
 # Simulating data with marginal_dist="sgt"
 # ----------------------------------------
@@ -1532,12 +1526,7 @@ data_sgt <- sim_market(corr = Corr,
                  marginal_dist = "sgt",
                  marginal_dist_model = sgt_pars,
                  k = 500)
-```
 
-    ## Warning in rmvnorm(n, sigma = sigma, ...): sigma is numerically not positive
-    ## semidefinite
-
-``` r
 # Seems to work very well.
 # But does it work with left_cop_weight =! 0?
 
@@ -1550,12 +1539,6 @@ data_nlc <- sim_market(corr = Corr,
                        marginal_dist = "norm",
                        marginal_dist_model = list(mu = 0, sd = 1),
                        k = 500)
-```
-
-    ## Warning in rmvnorm(n, sigma = sigma, ...): sigma is numerically not positive
-    ## semidefinite
-
-``` r
 set.seed(123)
 data_lc <- sim_market(corr = Corr, 
                       mv_dist = "t",
@@ -1565,12 +1548,6 @@ data_lc <- sim_market(corr = Corr,
                       marginal_dist = "norm",
                       marginal_dist_model = list(mu = 0, sd = 1),
                       k = 500)
-```
-
-    ## Warning in rmvnorm(n, sigma = sigma, ...): sigma is numerically not positive
-    ## semidefinite
-
-``` r
 set.seed(123)
 data_lco <- sim_market(corr = Corr, 
                       mv_dist = "t",
@@ -1589,16 +1566,16 @@ data_nlc %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd = 1
     ## # Groups:   Asset [50]
     ##    date       Asset    Return    sd
     ##    <date>     <glue>    <dbl> <dbl>
-    ##  1 2021-01-12 Asset_1   0.387 0.968
-    ##  2 2021-01-12 Asset_2   0.270 1.02 
-    ##  3 2021-01-12 Asset_3   0.264 1.03 
-    ##  4 2021-01-12 Asset_4   0.824 1.02 
-    ##  5 2021-01-12 Asset_5   0.187 1.00 
-    ##  6 2021-01-12 Asset_6   0.909 1.02 
-    ##  7 2021-01-12 Asset_7  -0.334 1.01 
-    ##  8 2021-01-12 Asset_8   0.556 1.01 
-    ##  9 2021-01-12 Asset_9   0.369 0.993
-    ## 10 2021-01-12 Asset_10  0.407 0.993
+    ##  1 2021-01-18 Asset_1   0.405 0.980
+    ##  2 2021-01-18 Asset_2   0.305 1.01 
+    ##  3 2021-01-18 Asset_3   0.299 1.03 
+    ##  4 2021-01-18 Asset_4   0.785 1.03 
+    ##  5 2021-01-18 Asset_5   0.233 1.00 
+    ##  6 2021-01-18 Asset_6   0.803 1.01 
+    ##  7 2021-01-18 Asset_7  -0.285 0.991
+    ##  8 2021-01-18 Asset_8   0.489 0.999
+    ##  9 2021-01-18 Asset_9   0.326 0.983
+    ## 10 2021-01-18 Asset_10  0.359 0.990
     ## # ... with 24,990 more rows
 
 ``` r
@@ -1609,16 +1586,16 @@ data_lc %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd approx = 0.58
     ## # Groups:   Asset [50]
     ##    date       Asset     Return    sd
     ##    <date>     <glue>     <dbl> <dbl>
-    ##  1 2021-01-12 Asset_1   0.296  0.580
-    ##  2 2021-01-12 Asset_2  -0.214  0.572
-    ##  3 2021-01-12 Asset_3   0.207  0.568
-    ##  4 2021-01-12 Asset_4   0.118  0.580
-    ##  5 2021-01-12 Asset_5   0.265  0.582
-    ##  6 2021-01-12 Asset_6   0.0234 0.583
-    ##  7 2021-01-12 Asset_7   0.0661 0.570
-    ##  8 2021-01-12 Asset_8   0.0955 0.564
-    ##  9 2021-01-12 Asset_9   0.289  0.569
-    ## 10 2021-01-12 Asset_10  0.478  0.592
+    ##  1 2021-01-18 Asset_1   0.349  0.573
+    ##  2 2021-01-18 Asset_2  -0.140  0.571
+    ##  3 2021-01-18 Asset_3   0.275  0.564
+    ##  4 2021-01-18 Asset_4   0.182  0.579
+    ##  5 2021-01-18 Asset_5   0.306  0.577
+    ##  6 2021-01-18 Asset_6   0.0166 0.597
+    ##  7 2021-01-18 Asset_7   0.0428 0.582
+    ##  8 2021-01-18 Asset_8   0.0804 0.580
+    ##  9 2021-01-18 Asset_9   0.289  0.574
+    ## 10 2021-01-18 Asset_10  0.420  0.584
     ## # ... with 24,990 more rows
 
 ``` r
@@ -1629,16 +1606,16 @@ data_lco %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd approx = 1
     ## # Groups:   Asset [50]
     ##    date       Asset    Return    sd
     ##    <date>     <glue>    <dbl> <dbl>
-    ##  1 2021-01-12 Asset_1   0.692 1.03 
-    ##  2 2021-01-12 Asset_2   0.169 1.00 
-    ##  3 2021-01-12 Asset_3   0.844 1.01 
-    ##  4 2021-01-12 Asset_4   0.544 1.04 
-    ##  5 2021-01-12 Asset_5   0.449 1.04 
-    ##  6 2021-01-12 Asset_6   0.487 1.04 
-    ##  7 2021-01-12 Asset_7   0.333 1.04 
-    ##  8 2021-01-12 Asset_8   0.520 1.05 
-    ##  9 2021-01-12 Asset_9   1.49  0.981
-    ## 10 2021-01-12 Asset_10  0.750 1.02 
+    ##  1 2021-01-18 Asset_1   0.692 1.03 
+    ##  2 2021-01-18 Asset_2   0.169 1.00 
+    ##  3 2021-01-18 Asset_3   0.844 1.01 
+    ##  4 2021-01-18 Asset_4   0.544 1.04 
+    ##  5 2021-01-18 Asset_5   0.449 1.04 
+    ##  6 2021-01-18 Asset_6   0.487 1.04 
+    ##  7 2021-01-18 Asset_7   0.333 1.04 
+    ##  8 2021-01-18 Asset_8   0.520 1.05 
+    ##  9 2021-01-18 Asset_9   1.49  0.981
+    ## 10 2021-01-18 Asset_10  0.750 1.02 
     ## # ... with 24,990 more rows
 
 ``` r
@@ -1660,7 +1637,7 @@ markets.
 #' The univariate asset return distributions can also be set to normal, student-t or sgt
 #' distributed. Finally, mean and variance persistence can be induced via the parameters of an
 #' ARMA + APARCH model.
-#' @note See examples under sim_market_with_progress for instructions on how to add an on screen
+#' @note See examples under sim_market for instructions on how to add an on screen
 #'  progress bar when performing the Monte Carlo simulation, this is recommended as calculations may
 #'  take a number of minuets.
 #'
@@ -1780,7 +1757,7 @@ mc_market <- function(corr,
 #---------
 #toy corr
 #--------
-corr <- MCmarket::gen_corr(D = 20, clusters = "overlapping", num_clusters = c(2,5,4), num_layers = 3 )
+corr <- MCmarket::gen_corr(D = 20, clusters = "overlapping", num_clusters = c(2,5,4))
 #--------------
 #emperical corr
 #--------------
@@ -1794,7 +1771,7 @@ corr <- MCmarket::gen_corr(D = 20, clusters = "overlapping", num_clusters = c(2,
 set.seed(521554)
 mc_data <- mc_market(corr, N = 10, 
                      k = 500, marginal_dist = "t",
-                     left_cop_weight = 0.1)
+                     list = FALSE)
 
 # Plotting reasults
 mc_data %>% 
@@ -1812,222 +1789,12 @@ mc_data %>%
 
 <img src="README_files/figure-gfm/unnamed-chunk-5-1.png" width="80%" height="80%" />
 
-## sim\_market\_with\_progress
-
-This is used if user wants to see a progress bar when performing MC
-simulations.
-
-``` r
-#' @title sim_market_with_progress
-#' @description This is an alternative version of the sim_market function that
-#' includes functionality to include a progress bar when used in purrr::map functions
-#' @note  See ??sim_market for details on use.
-#' @return a tidy tibble containing a date, Asset and Return column.
-#'
-#' @importFrom copula ellipCopula archmCopula rcopula
-#' @importFrom glue glue
-#' @importFrom sgt qsgt
-#' @importFrom lubridate '%m+%' days
-#' @importFrom tidyr gather
-#' @import dplyr
-#' @import purrr
-#'
-#' @examples
-#'
-#' \dontrun{
-#'
-#' library(MCmarket)
-#' library(tidyverse)
-#'
-#' ### creating a correlation matrix to use as input in sim_asset_market
-#' corr <- gen_corr(N = 20, Clusters = "none")
-#'
-#'
-#' N <- 100
-#' pb <- dplyr::progress_estimated(N)   # this must be named pb
-#' market <-
-#'       map_dfr(1:N,
-#'               ~sim_market_with_progress(corr),
-#'               .id = "Universe")
-#'
-#' }
-#' @export
-sim_market_with_progress <- function(corr,
-                                     k = 252,
-                                     mv_dist = "t",
-                                     mv_df = 3,
-                                     left_cop_weight = 0,
-                                     left_cop_param = 4,
-                                     marginal_dist = "norm",
-                                     marginal_dist_model = NULL,
-                                     ts_model = list()
-) {
-
-    # Tick to progress bar
-    pb$tick()$print()
-
-    # sim_market
-    N <- nrow(corr)
-    k <- k + 1   # extra room for sim_garch to as a lag.
-    Cor <- P2p(corr)
-
-    # Specifying  Copulas
-    # elliptical
-    if(!(mv_dist %in% c("norm", "t"))) stop("Please supply a valid argument for mv_dist")
-    else
-        if (mv_dist == "t") {
-            if (is.null(mv_df)) stop('Please supply a valid degrees of freedom parameter when using mv_dist = "t".')
-            Ecop <- ellipCopula(family = "t",
-                                dispstr = "un",
-                                df = mv_df,
-                                param = Cor,
-                                dim = N)
-        } else
-            if (mv_dist == "norm") {
-                Ecop <- ellipCopula(family = "normal",
-                                    dispstr = "un",
-                                    param = Cor,
-                                    dim = N)
-            }
-
-    # Left-cop (Archemedian copula)
-    if (left_cop_weight < 0|left_cop_weight > 1) stop("Please provide a valid left_cop_weight between 0 and 1")
-    if (left_cop_weight != 0) {
-        Acop <- archmCopula(family = "clayton",
-                            param = left_cop_param,
-                            dim = N)
-    }
-
-    # Generating random (uniformly distributed) draws from hybrid copula's
-    if (left_cop_weight == 0) {
-        data <- rCopula(k, Ecop)
-    } else
-        if(left_cop_weight == 1) {
-            data <- rCopula(k, Acop)
-        } else {
-            data <- (left_cop_weight*rCopula(k, Acop) + (1-left_cop_weight)*rCopula(k, Ecop))
-        }
-
-    # Creating a date vector
-    start_date <- Sys.Date()
-    dates <- rmsfuns::dateconverter(StartDate = start_date,
-                                    EndDate = start_date %m+% lubridate::days(k-1),
-                                    Transform = "alldays")
-
-    # Making Tidy & adding date column
-    data <- as_tibble(data) %>%
-        purrr::set_names(glue::glue("Asset_{1:ncol(data)}")) %>%
-        mutate(date = dates) %>%
-        gather(Asset, Value, -date)
-
-    if (!(marginal_dist %in% c("norm", "t", "sgt", "unif"))) stop ("Please supply a valid marginal_dist argument")
-
-    if (marginal_dist == "unif") return(data)
-
-    # Warnings
-    if (marginal_dist == "norm" & is.null(marginal_dist_model)) marginal_dist_model <- list(mu=0, sd = 1)
-    if (marginal_dist == "t" & is.null(marginal_dist_model))  marginal_dist_model <- list(mu=0, df = 5)
-    if (marginal_dist == "sgt" & is.null(marginal_dist_model)) stop ('Please supply a valid marginal_dist_model when using marginal_dist="sgt".')
-
-    #Converting Uniform marginal distributions to norm, t or sgt.
-    args <- tibble(Asset = glue::glue("Asset_{1:N}")) %>%
-        mutate(mean = marginal_dist_model$mu,
-               sd = marginal_dist_model$sd,
-               ncp = marginal_dist_model$ncp,
-               df = marginal_dist_model$df,
-               lambda = marginal_dist_model$lambda,
-               p = marginal_dist_model$p,
-               q = marginal_dist_model$q)
-
-    if (marginal_dist == "norm") {
-
-        if(is.null(marginal_dist_model$mu)) stop('Please supply a valid mu parameter when using marginal_dist = "norm".')
-        if(is.null(marginal_dist_model$sd)) stop('Please supply a valid sd parameter when using marginal_dist = "norm".')
-
-        data <- data %>% left_join(., args, by = "Asset") %>%
-            group_by(Asset) %>%  arrange(date) %>%
-            mutate(Return =  qnorm(Value, mean, sd)) %>%
-            select(date, Asset, Return)
-
-    } else
-        if (marginal_dist == "t") {
-
-            if(is.null(marginal_dist_model$ncp)) stop('Please supply a valid ncp parameter when using marginal_dist = "t".')
-            if(is.null(marginal_dist_model$df)) stop('Please supply a valid df parameter when using marginal_dist = "t".')
-
-            data <- data %>% left_join(., args, by = "Asset") %>%
-                group_by(Asset) %>%  arrange(date) %>%
-                mutate(Return = qt(Value, df =  df, ncp =  ncp)) %>%
-                select(date, Asset, Return)
-
-        } else
-            if (marginal_dist == "sgt") {
-
-                if (is.null(marginal_dist_model$mu)) marginal_dist_model$mu <- 0
-                if (is.null(marginal_dist_model$sd)) marginal_dist_model$sd <- 1
-                if (is.null(marginal_dist_model$lambda)|
-                    is.null(marginal_dist_model$p)|
-                    is.null(marginal_dist_model$q)) stop('Please supply valid arguments for lambda, p and q when using marginal_dist = "sgt".')
-
-                data <- data %>% left_join(., args, by = "Asset") %>%
-                    group_by(Asset) %>% arrange(date) %>%
-                    mutate(Return = qsgt(Value, mean, sd, lambda, p, q)) %>%
-                    select(date, Asset, Return)
-
-            }
-
-    if (is.null(ts_model)) {
-
-        data <- data %>% dplyr::filter(date > first(date))
-        return(data)
-
-    } else {
-
-        # Warnings
-        if (!is.null(ts_model$omega) & length(ts_model$omega) != 1 & length(ts_model$omega) != N) stop("Please supply a valid vector length for omega. Must be of length 1 or ncol(corr).")
-        if (!is.null(ts_model$alpha) & length(ts_model$alpha) != 1 & length(ts_model$alpha) != N) stop("Please supply a valid vector length for alpha. Must be of length 1 or ncol(corr).")
-        if (!is.null(ts_model$gamma) & length(ts_model$gamma) != 1 & length(ts_model$gamma) != N) stop("Please supply a valid vector length for gamma. Must be of length 1 or ncol(corr).")
-        if (!is.null(ts_model$beta) & length(ts_model$beta) != 1 & length(ts_model$beta) != N) stop("Please supply a valid vector length for beta. Must be of length 1 or ncol(corr).")
-        if (!is.null(ts_model$mu) & length(ts_model$mu) != 1 & length(ts_model$mu) != N) stop("Please supply a valid vector length for mu. Must be of length 1 or ncol(corr).")
-        if (!is.null(ts_model$ar) & length(ts_model$ar) != 1 & length(ts_model$ar) != N) stop("Please supply a valid vector length for ar. Must be of length 1 or ncol(corr).")
-        if (!is.null(ts_model$ma) & length(ts_model$ma) != 1 & length(ts_model$ma) != N) stop("Please supply a valid vector length for ma. Must be of length 1 or ncol(corr).")
-        if (!is.null(ts_model$delta) & length(ts_model$delta) != 1 & length(ts_model$delta) != N) stop("Please supply a valid vector length for delta. Must be of length 1 or ncol(corr).")
-
-        # Inducing mean and/or variance persistence
-
-        # Tibble with with garh parameters and defaults
-        ts_args <- tibble(Asset = glue::glue("Asset_{1:N}")) %>%
-            mutate(omega = if (is.null(ts_model$omega)) {5e-04} else {ts_model$omega},
-                   alpha = if (is.null(ts_model$alpha)) {0} else {ts_model$alpha},
-                   gamma = if (is.null(ts_model$gamma)) {0}  else {ts_model$gamma},
-                   beta = if (is.null(ts_model$beta)) {0} else {ts_model$beta},
-                   mu = if (is.null(ts_model$mu)) {0} else {ts_model$mu},   #changed form NULL to 0
-                   ar = if (is.null(ts_model$ar)) {0} else {ts_model$ar},
-                   ma = if (is.null(ts_model$ma)) {0} else {ts_model$ma},
-                   delta = if (is.null(ts_model$delta)) {2} else {ts_model$delta})
-
-        # Inducing garch properties
-        data <- data %>% left_join(., ts_args, by = "Asset") %>%
-            arrange(date) %>% group_by(Asset) %>%
-            mutate(Return = sim_garch(innovations = Return,
-                                      omega = omega,
-                                      alpha = alpha,
-                                      gamma = gamma,
-                                      beta = beta,
-                                      mu = mu,
-                                      ar = ar,
-                                      ma = ma,
-                                      delta = delta)) %>% na.omit() %>%
-            select(date, Asset, Return)
-        return(data)
-    }
-}
-```
-
 ### sim\_market\_with\_progress Example
 
 ``` r
-N <- 10
+rm(sim_market)
+library(MCmarket)
+N <- 100
 pb <- dplyr::progress_estimated(N)   # this must be named pb
 ```
 
@@ -2038,10 +1805,10 @@ pb <- dplyr::progress_estimated(N)   # this must be named pb
 ``` r
 market <-
        map_dfr(1:N,
-               ~sim_market_with_progress(diag(10)),
+               ~sim_market(diag(10), progress = TRUE),
                .id = "Universe")
 
 object.size(x = market) %>% print(units = "Mb")
 ```
 
-    ## 0.9 Mb
+    ## 7.7 Mb
