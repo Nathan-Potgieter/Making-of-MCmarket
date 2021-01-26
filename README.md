@@ -4,33 +4,23 @@ README
 # MCmarket an R Package Designed for Simulating Asset Market Returns
 
 This is the README for Nathan Potgieter’s financial econometrics
-project. This work sets out and packages a framework for the Monte Carlo
-simulation of asset markets. The package will be available in on githib
-under the “Nathan-Potgieter/MCmarket” repository.
+project. This work sets out a framework for the Monte Carlo simulation
+of asset markets. This frame work is built into the MCmarket package
+which will be available in on githib under the
+“Nathan-Potgieter/MCmarket” repository. Or maybe not if the name must
+be changed.
 
 ## Aim
 
 The aim of this project is to develop a general and easy to use Monte
 Carlo simulation package designed to generate asset return data, with a
-prespecified correlation structure and dynamic correlations. Here
-dynamic correlations refer to a property of a multivariate distribution
-where average correlations/dependencies increase within the left-tail.
-Ideally the user will be able to adjust a “leverage” parameter, which
-will determine the markets left-tail dependency, and in turn effect the
-likelihood of entering a “crisis period” characterized by extreme joint
-drawdowns.
-
-Elliptical copulas are used to specify the correlation structure in the
-simulated data and the Archmedian Clayton copula is used induce greater
-left-tail dependencies.
-
-The data will also be simulated to posses volatility persistence, this
-way the simulated data can exhibit volatility clusters. This is
-accomplished by utilizing various ARMA(1,1) + APARCH(1,1) models, the
-parameters of which can be adjusted to induce alternative risk
-characteristics. Since APARCH nests at least 7 other volatility models,
-the user effectively has a wide range of volatility models from which to
-choose.
+pre-specified correlation structure, various asset distribution options
+and mean and variance time-series properties. Elliptical copulas are
+used to specify the correlation structure within the simulated data. The
+option to use the Archmedian Clayton copula is also made available, as
+this allow for the creation of markets with high left-tail dependence.
+However, when using this option the correlation structure will not be
+able to be specified.
 
 ## Monte Carlo Framework
 
@@ -43,21 +33,22 @@ markets.
     (corresponding to k trading periods), across a set of D variables
     (or D assets), from a multivariate distribution with a given
     correlation matrix.
-      - This is accomplished using Euclidean (Gaussian or t-copula) and
-        the Archmediean Clayton copula’s and can easily be done using
+      - This is accomplished using Euclidean (Gaussian or t-copula) or
+        Archmediean Clayton copulas. In R this can easily be done using
         the *ellipCopula*, *archmCopula* and *rcopula* functions from
         the *copula* package.
 2.  Convert the uniformly distributed data into something that more
-    resembles the distribution of asset returns. Functionality is
-    provided to convert them into normal, student-t or
+    resembles the distribution of asset returns. MCmarket provides
+    functionality to convert them into normal, student-t or
     skewed-generalized t distributions.
       - This is done the same way one would convert p-values into test
-        statistics using the dnorm() and dsgt() functions respectively.
+        statistics. In are the dnorm(), dt() and sgt::dsgt() functions
+        are used.
       - Technically this is accomplished via the inversion of the
         cumulative distribution function (CDF).
-3.  This step induces mean and variance persistence to the series, by
-    plugging the random numbers resulting from step 2 into a ARMA(1,1) +
-    APARCH(1,1) equation as the innovations.
+3.  Induce mean and variance persistence to the series, by plugging the
+    random numbers resulting from step 2 into a ARMA(1,1) + APARCH(1,1)
+    equation as the innovations.
       - If the parameters are set accordingly the resulting series
         should possess the volatility clustering observed in empirical
         asset returns.
@@ -71,9 +62,9 @@ library(pacman)
 # Loading MCmarket
 p_load(MCmarket)
 #These packages are used in the Monte Carlo (MC) functions.
-p_load(tidyverse, copula, lubridate, forecast, sgt, glue)
+p_load(tidyverse, copula, lubridate, sgt, glue)
 #These packages are only used in research and demonstration tasks.
-p_load(tbl2xts, fGarch)
+p_load(tbl2xts, fGarch, forecast)
 ```
 
 # The Set up
@@ -1107,16 +1098,16 @@ data %>% group_by(Asset) %>% mutate(mean = mean(Return),
     ## # Groups:   Asset [10]
     ##    date       Asset    Return     mean    sd
     ##    <date>     <chr>     <dbl>    <dbl> <dbl>
-    ##  1 2021-01-17 Asset_1  -1.19   0.0425  1.02 
-    ##  2 2021-01-17 Asset_2  -0.251  0.00429 1.02 
-    ##  3 2021-01-17 Asset_3   0.259  0.0168  0.999
-    ##  4 2021-01-17 Asset_4  -1.91   0.00639 1.02 
-    ##  5 2021-01-17 Asset_5  -0.156  0.0267  1.00 
-    ##  6 2021-01-17 Asset_6  -0.181 -0.00721 0.972
-    ##  7 2021-01-17 Asset_7  -0.865  0.0258  0.963
-    ##  8 2021-01-17 Asset_8  -0.847 -0.0127  0.963
-    ##  9 2021-01-17 Asset_9  -0.859  0.0172  0.928
-    ## 10 2021-01-17 Asset_10 -1.06  -0.00700 0.972
+    ##  1 2021-01-26 Asset_1  -1.19   0.0425  1.02 
+    ##  2 2021-01-26 Asset_2  -0.251  0.00429 1.02 
+    ##  3 2021-01-26 Asset_3   0.259  0.0168  0.999
+    ##  4 2021-01-26 Asset_4  -1.91   0.00639 1.02 
+    ##  5 2021-01-26 Asset_5  -0.156  0.0267  1.00 
+    ##  6 2021-01-26 Asset_6  -0.181 -0.00721 0.972
+    ##  7 2021-01-26 Asset_7  -0.865  0.0258  0.963
+    ##  8 2021-01-26 Asset_8  -0.847 -0.0127  0.963
+    ##  9 2021-01-26 Asset_9  -0.859  0.0172  0.928
+    ## 10 2021-01-26 Asset_10 -1.06  -0.00700 0.972
     ## # ... with 9,990 more rows
 
 ``` r
@@ -1213,16 +1204,16 @@ data %>% group_by(Asset) %>% mutate(mean = mean(Return),
     ## # Groups:   Asset [10]
     ##    date       Asset     Return     mean    sd
     ##    <date>     <chr>      <dbl>    <dbl> <dbl>
-    ##  1 2021-01-17 Asset_1   0.0251 -0.0223  0.585
-    ##  2 2021-01-17 Asset_2   0.251   0.0142  0.587
-    ##  3 2021-01-17 Asset_3   0.422  -0.00467 0.603
-    ##  4 2021-01-17 Asset_4   0.279  -0.00350 0.609
-    ##  5 2021-01-17 Asset_5   0.528  -0.00340 0.600
-    ##  6 2021-01-17 Asset_6  -0.560   0.00799 0.602
-    ##  7 2021-01-17 Asset_7  -0.860   0.0220  0.603
-    ##  8 2021-01-17 Asset_8  -0.733  -0.00430 0.586
-    ##  9 2021-01-17 Asset_9  -0.728   0.00940 0.587
-    ## 10 2021-01-17 Asset_10 -0.829  -0.00975 0.606
+    ##  1 2021-01-26 Asset_1   0.0251 -0.0223  0.585
+    ##  2 2021-01-26 Asset_2   0.251   0.0142  0.587
+    ##  3 2021-01-26 Asset_3   0.422  -0.00467 0.603
+    ##  4 2021-01-26 Asset_4   0.279  -0.00350 0.609
+    ##  5 2021-01-26 Asset_5   0.528  -0.00340 0.600
+    ##  6 2021-01-26 Asset_6  -0.560   0.00799 0.602
+    ##  7 2021-01-26 Asset_7  -0.860   0.0220  0.603
+    ##  8 2021-01-26 Asset_8  -0.733  -0.00430 0.586
+    ##  9 2021-01-26 Asset_9  -0.728   0.00940 0.587
+    ## 10 2021-01-26 Asset_10 -0.829  -0.00975 0.606
     ## # ... with 9,990 more rows
 
 ### sim\_market
@@ -1566,16 +1557,16 @@ data_nlc %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd = 1
     ## # Groups:   Asset [50]
     ##    date       Asset    Return    sd
     ##    <date>     <glue>    <dbl> <dbl>
-    ##  1 2021-01-18 Asset_1   0.405 0.980
-    ##  2 2021-01-18 Asset_2   0.305 1.01 
-    ##  3 2021-01-18 Asset_3   0.299 1.03 
-    ##  4 2021-01-18 Asset_4   0.785 1.03 
-    ##  5 2021-01-18 Asset_5   0.233 1.00 
-    ##  6 2021-01-18 Asset_6   0.803 1.01 
-    ##  7 2021-01-18 Asset_7  -0.285 0.991
-    ##  8 2021-01-18 Asset_8   0.489 0.999
-    ##  9 2021-01-18 Asset_9   0.326 0.983
-    ## 10 2021-01-18 Asset_10  0.359 0.990
+    ##  1 2021-01-27 Asset_1   0.405 0.980
+    ##  2 2021-01-27 Asset_2   0.305 1.01 
+    ##  3 2021-01-27 Asset_3   0.299 1.03 
+    ##  4 2021-01-27 Asset_4   0.785 1.03 
+    ##  5 2021-01-27 Asset_5   0.233 1.00 
+    ##  6 2021-01-27 Asset_6   0.803 1.01 
+    ##  7 2021-01-27 Asset_7  -0.285 0.991
+    ##  8 2021-01-27 Asset_8   0.489 0.999
+    ##  9 2021-01-27 Asset_9   0.326 0.983
+    ## 10 2021-01-27 Asset_10  0.359 0.990
     ## # ... with 24,990 more rows
 
 ``` r
@@ -1586,16 +1577,16 @@ data_lc %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd approx = 0.58
     ## # Groups:   Asset [50]
     ##    date       Asset     Return    sd
     ##    <date>     <glue>     <dbl> <dbl>
-    ##  1 2021-01-18 Asset_1   0.349  0.573
-    ##  2 2021-01-18 Asset_2  -0.140  0.571
-    ##  3 2021-01-18 Asset_3   0.275  0.564
-    ##  4 2021-01-18 Asset_4   0.182  0.579
-    ##  5 2021-01-18 Asset_5   0.306  0.577
-    ##  6 2021-01-18 Asset_6   0.0166 0.597
-    ##  7 2021-01-18 Asset_7   0.0428 0.582
-    ##  8 2021-01-18 Asset_8   0.0804 0.580
-    ##  9 2021-01-18 Asset_9   0.289  0.574
-    ## 10 2021-01-18 Asset_10  0.420  0.584
+    ##  1 2021-01-27 Asset_1   0.349  0.573
+    ##  2 2021-01-27 Asset_2  -0.140  0.571
+    ##  3 2021-01-27 Asset_3   0.275  0.564
+    ##  4 2021-01-27 Asset_4   0.182  0.579
+    ##  5 2021-01-27 Asset_5   0.306  0.577
+    ##  6 2021-01-27 Asset_6   0.0166 0.597
+    ##  7 2021-01-27 Asset_7   0.0428 0.582
+    ##  8 2021-01-27 Asset_8   0.0804 0.580
+    ##  9 2021-01-27 Asset_9   0.289  0.574
+    ## 10 2021-01-27 Asset_10  0.420  0.584
     ## # ... with 24,990 more rows
 
 ``` r
@@ -1606,16 +1597,16 @@ data_lco %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd approx = 1
     ## # Groups:   Asset [50]
     ##    date       Asset    Return    sd
     ##    <date>     <glue>    <dbl> <dbl>
-    ##  1 2021-01-18 Asset_1   0.692 1.03 
-    ##  2 2021-01-18 Asset_2   0.169 1.00 
-    ##  3 2021-01-18 Asset_3   0.844 1.01 
-    ##  4 2021-01-18 Asset_4   0.544 1.04 
-    ##  5 2021-01-18 Asset_5   0.449 1.04 
-    ##  6 2021-01-18 Asset_6   0.487 1.04 
-    ##  7 2021-01-18 Asset_7   0.333 1.04 
-    ##  8 2021-01-18 Asset_8   0.520 1.05 
-    ##  9 2021-01-18 Asset_9   1.49  0.981
-    ## 10 2021-01-18 Asset_10  0.750 1.02 
+    ##  1 2021-01-27 Asset_1   0.692 1.03 
+    ##  2 2021-01-27 Asset_2   0.169 1.00 
+    ##  3 2021-01-27 Asset_3   0.844 1.01 
+    ##  4 2021-01-27 Asset_4   0.544 1.04 
+    ##  5 2021-01-27 Asset_5   0.449 1.04 
+    ##  6 2021-01-27 Asset_6   0.487 1.04 
+    ##  7 2021-01-27 Asset_7   0.333 1.04 
+    ##  8 2021-01-27 Asset_8   0.520 1.05 
+    ##  9 2021-01-27 Asset_9   1.49  0.981
+    ## 10 2021-01-27 Asset_10  0.750 1.02 
     ## # ... with 24,990 more rows
 
 ``` r

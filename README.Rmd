@@ -15,26 +15,24 @@ gc()
 
 # MCmarket an R Package Designed for Simulating Asset Market Returns
 
-This is the README for Nathan Potgieter's financial econometrics project. This work sets out and packages a framework for the Monte Carlo simulation of asset markets. The package will be available in on githib under the "Nathan-Potgieter/MCmarket" repository.
+This is the README for Nathan Potgieter's financial econometrics project. This work sets out a framework for the Monte Carlo simulation of asset markets. This frame work is built into the MCmarket package which will be available in on githib under the "Nathan-Potgieter/MCmarket" repository. Or maybe not if the name must be changed.
 
 ## Aim
-The aim of this project is to develop a general and easy to use Monte Carlo simulation package designed to generate asset return data, with a prespecified correlation structure and dynamic correlations. Here dynamic correlations refer to a property of a multivariate distribution where average correlations/dependencies increase within the left-tail.  Ideally the user will be able to adjust a "leverage" parameter, which will determine the markets left-tail dependency, and in turn effect the likelihood of entering a "crisis period" characterized by extreme joint drawdowns. 
 
-Elliptical copulas are used to specify the correlation structure in the simulated data and the Archmedian Clayton copula is used induce greater left-tail dependencies.
-
-The data will also be simulated to posses volatility persistence, this way the simulated data can exhibit volatility clusters. This is accomplished by utilizing various ARMA(1,1) + APARCH(1,1) models, the parameters of which can be adjusted to induce alternative risk characteristics. Since APARCH nests at least 7 other volatility models, the user effectively has a wide range of volatility models from which to choose.   
+The aim of this project is to develop a general and easy to use Monte Carlo simulation package designed to generate asset return data, with a pre-specified correlation structure, various asset distribution options and mean and variance time-series properties. Elliptical copulas are used to specify the correlation structure within the simulated data. The option to use the Archmedian Clayton copula is also made available, as this allow for the creation of markets with high left-tail dependence. However, when using this option the correlation structure will not be able to be specified.
 
 ## Monte Carlo Framework
+
 The Monte Carlo simulation routine involves the following steps:
 
 This example generates k periods of returns, for D Assets across N markets.
 
 1. Draw a series of k random uniformly distributed numbers (corresponding to k trading periods), across a set of D variables (or D assets), from a multivariate distribution with a given correlation matrix. 
-    + This is accomplished using Euclidean (Gaussian or t-copula) and the Archmediean Clayton copula's and can easily be done using the _ellipCopula_, _archmCopula_ and _rcopula_ functions from the _copula_ package. 
-2. Convert the uniformly distributed data into something that more resembles the distribution of asset returns. Functionality is provided to convert them into normal, student-t or skewed-generalized t distributions. 
-    + This is done the same way one would convert p-values into test statistics using the dnorm() and dsgt() functions respectively.
+    + This is accomplished using Euclidean (Gaussian or t-copula) or Archmediean Clayton copulas. In R this can easily be done using the _ellipCopula_, _archmCopula_ and _rcopula_ functions from the _copula_ package. 
+2. Convert the uniformly distributed data into something that more resembles the distribution of asset returns. MCmarket provides functionality to convert them into normal, student-t or skewed-generalized t distributions. 
+    + This is done the same way one would convert p-values into test statistics. In are the dnorm(), dt() and sgt::dsgt() functions are used.
     + Technically this is accomplished via the inversion of the cumulative distribution function (CDF).
-3. This step induces mean and variance persistence to the series, by plugging the random numbers resulting from step 2 into a ARMA(1,1) + APARCH(1,1) equation as the innovations. 
+3. Induce mean and variance persistence to the series, by plugging the random numbers resulting from step 2 into a ARMA(1,1) + APARCH(1,1) equation as the innovations. 
     + If the parameters are set accordingly the resulting series should possess the volatility clustering observed in empirical asset returns. 
 4. The final step is to repeat the first 3 steps N times to generate an ensemble of asset markets, each with the same risk characteristics. 
 
@@ -44,15 +42,19 @@ library(pacman)
 # Loading MCmarket
 p_load(MCmarket)
 #These packages are used in the Monte Carlo (MC) functions.
-p_load(tidyverse, copula, lubridate, forecast, sgt, glue)
+p_load(tidyverse, copula, lubridate, sgt, glue)
 #These packages are only used in research and demonstration tasks.
-p_load(tbl2xts, fGarch)
+p_load(tbl2xts, fGarch, forecast)
 ```
 
 # The Set up
+
+Since a correlation matrix is the key input in the Monte Carlo simulation framework this section covers the creation of some _ad hoc_ correlation matrices using the MCmarkets::sim_corr function, as well as, the estimation of some empirical correlation matrices using S&P500 data. 
+
+
 ## Generating Ad Hoc Covarience matrix
 
-In this section I developed a simple function that allows the user to easily generate a correlation matrix with a desired correlation structure. This will be used as a key input when simulating the financial markets.  Note that the majority of the code was provided by Nico Katzke. The function is located in the gen_corr.R code file. 
+In this section I developed a simple function that allows the user to easily generate a correlation matrix with a desired correlation structure. Note that the majority of the code was provided by Nico Katzke. The function is located in the gen_corr.R code file. 
 
 ### gen_corr 
 
@@ -185,29 +187,34 @@ Demonstrating the use of gen_corr
 ```{r using gen_corr}
 gen_corr(D = 60, clusters = "none") %>% 
   ggcorrplot::ggcorrplot(title = "No Clusters", hc.order = FALSE)
+
 gen_corr(D = 60, clusters = "non-overlapping", num_clusters = c(3)) %>% 
   ggcorrplot::ggcorrplot(title = "Non-Overlapping Clusters", hc.order = FALSE)
+
 gen_corr(D = 60, clusters = "overlapping", num_clusters = c(10,5,4,2)) %>% ggcorrplot::ggcorrplot(title = "Overlapping Clusters", hc.order = FALSE)
 
 ```
 
 ## Creating a Dataset of Emperical Correlation Matrices
 
-Since it would also be useful for MCmarkets's users to have easy acess to some labeled empirical correlation matrices, a data set containing correlation matrices labeled "stressed", "rally" and "normal" is now constructed.
+Since it would also be useful for MCmarkets's users to have easy access to some empirical correlation matrices, a data set containing correlation matrices labeled "stressed", "rally" and "normal" is now constructed.
 
-S&P500 data since 1/01/2000 is used to  sample covariance matrices that can be used as inputs in the Monte Carlo procedure. These matrices will be made available as part of the MCmarket package. They can also be used at a train Generative adversarial network (GAN) models, like CorrGAN (https://marti.ai). 
+S&P500 data since 1/01/2000 is used to  sample covariance matrices that can be used as inputs in the Monte Carlo procedure. These matrices will be made available as part of the MCmarket package. They can also be used generative correlation models, like CorrGAN (https://marti.ai). At a later stage MCmarket may incorporate some generative correlation matrix models, preferably those like the conditional CorrGAN or conditional CorrVAE. this will allow users to randomly simulate different types of realistic correlation matrices.
 
-Note that none of the code in this section is run when building this README, It would simply take forever to knit this document.
+Note that this code is not run when building this README, it would simply take too long to knit this document.
 
 #### Getting SNP 500 data since 2000
-- The code below pulls in SNP 500 data since 2000/01/01.
+
 ```{r SNP_data, eval=FALSE, echo=TRUE}
 pacman::p_load(tidyverse, tidyquant, lubridate)
+
+# impute missing returns from fin merics tut is used to fill in missing data
 source("code/impute_missing_returns.R")
 
 # save current system date to a variable
 today <- Sys.Date()
-#date <- today %m+% months(-90)
+
+# saving from date
 date <- as.Date("2000-01-01")
 
 # Getting all tickers in SP500
@@ -264,7 +271,6 @@ Note that this methodology is consistent with that used in https://marti.ai/qfin
 
 ```{r sharp, eval=FALSE, echo=TRUE}
 load("data/SNP_returns.Rda")
-
 
 #Packages used in chunk
 library(pacman)
@@ -335,6 +341,7 @@ gen_random_port <- function(dim = 100, sharp = TRUE) {
         }
     return(training_data)
 }
+
 #------------------------------------------
 #First I generate the labeled training data
 #------------------------------------------
@@ -454,15 +461,17 @@ cov_mats$cov_stressed[[1]] %>% cov2cor() %>%
 
 ```
 
-# Building the Monte Carlo Framework
+# Building the Monte Carlo 
 
 ## Step 1: Draw a series of random uniformly distributed numbers across a set of variables with a specified dependence structure.
 
 ### Generating Random Draws Using Various Copulas
 
+This section explores the feasibility of using various types of copulas as part of the Monte Carlo framework.
+
 #### Elliptal copulas
 
-the Gaussian and t Elliptal copulas allow us to specify a correlation matrix before randomly selecting observations from the multivariate distribution. Doing so allows one to produce random draws of uniformly distributed variables that adhere to the user specified correlation structure. The chunk of code below demonstrates this functionality. 
+The Gaussian and t Elliptal copulas allow us to specify their correlation matrix before randomly selecting observations from their multivariate distribution. Doing so allows one to produce random draws of uniformly distributed variables that adhere to the user specified correlation structure. The chunk of code below demonstrates this functionality. 
 
 ```{r Elliptal Copulas, warning=FALSE}
 #loading copula package; already loaded
@@ -517,9 +526,11 @@ p1
 
 ### Archimedean Copulas
 
-Unfortunately, Elliptal copulas cannot be calibrated to exhibit dynamic correlations (i.e left-tail dependence). And Archimedean copulas don't allow us to stipulate their surrelation structure, that is not via a correlation matrix. Therefore, in this section we examine some properties of Archimedean copulas which do exhibit this characteristic. 
+This work seeked out a method to produce simulated markets with high left tail dependence. This would in theory enable the simulation of markets in which the correlation between assets increases when when overall asset returns are low. (i.e. during crisis periods) 
 
-Archimedean copulas such as the Clayton, Frank, Gumbel and Joe exhibit higher levels of dependence at the tails of the multivariate distribution. In this section we will examine the Clayton copula due to it exhibiting enhanced left-tail dependencies. Other copulas have been examined, but the Clayton copula is currently the only Archimedean copula, in the copula package, that allows random sampling from multivariate distributions with Dim > 2. Additionally, the other copulas have to be rotated 180 degrees to exhibit left-tail dependence (since they naturally posses right-tail dependence). This rotation step can be quite time consuming and often fails in higher dimensions. Therefore, the choice to focus on only using the Clayton copula was largely due to practical concerns raised when tinkering with alternative copulas. Therefore, in future work it would be beneficial to explore alternative high dimensional, left-tail copulas. 
+Unfortunately, Elliptal copulas cannot be calibrated to exhibit dynamic correlations (i.e left-tail dependence). Therefore, in this section we examine some properties of Archimedean copulas which do exhibit left-tail dependence. Unfortunately, Archimedean copulas don't allow us to stipulate their correlation matrix. 
+
+Archimedean copulas such as the Clayton, Frank, Gumbel and Joe exhibit higher levels of dependence at the tails of the multivariate distribution. In this section we will examine the Clayton copula due to it exhibiting enhanced left-tail dependencies. Other copulas have been examined, but the Clayton copula is currently the only Archimedean copula, in the copula package, that allows random sampling from multivariate distributions with with large dimensions. Additionally, the other copulas have to be rotated 180 degrees to exhibit left-tail dependence (since they naturally posses right-tail dependence). This rotation step can be quite time consuming and often fails in higher dimensions. Therefore, the choice to focus on only using the Clayton copula was largely due to practical concerns raised when tinkering with alternative copulas. Therefore, in future work it would be beneficial to explore alternative high dimensional, left-tail copulas. 
 
 
 ```{r Archimedean copula, warning=TRUE}
