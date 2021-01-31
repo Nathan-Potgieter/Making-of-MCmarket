@@ -213,7 +213,8 @@ source("code/impute_missing_returns.R")
 
 # save current system date to a variable
 today <- Sys.Date()
-
+# subtract 90 months from the current date| this is used at a later stage. 
+#date <- today %m+% months(-90)
 # saving from date
 date <- as.Date("2000-01-01")
 
@@ -603,18 +604,23 @@ rCopula(1000, galcop) %>% plot()
 
 ## Hybrid Copulas
 
-Sklar's (1959) Theorem: States that a copula is a convex set and every convex combination of existing copula functions is again a copula. 
+Since this project wanted to include the left-tail dependence property from the Clayton copula and the ability to specify the correlation matrix from the Elliptal copulas, there was an investigation into the creation of hybrid copulas.
 
-Thus, if  $C_1(U_N)$  and  $C_2(U_N)$ are multivariate copula's of dimension D and $w$ is a weighting variable between 0 and 1, then 
+@ruenzi states that flexible copula structures an be created through convex combinations of basic copulas. The authors use the 2D case and Tawn's theorem (below) to construct hybrid bivariate copulas. 
+
+Tawn (1988) "shows that a copula is a convex set and
+every convex combination of existing copula functions is again a copula" [@ruenzi2011, p.8].
+
+Thus, if  $C_1(U_N)$  and  $C_2(U_N)$ are 2D copulas and $w$ is a weighting variable between 0 and 1, then 
 
 <center> $$C(U_N)=w.C_1(U_N)+(1-w)C_2(U_N)$$ </center>
 
-is a unique copula. Therefore, a hybrid copula $C(U_N)$ can be created by linearly weighting an Elliptical and Archimedean copula of the same dimension. 
+is a unique copula. Therefore, a hybrid copula $C(U_N)$ can be created by linearly weighting an Elliptical and Archimedean copula of the dimension 2. 
 
-See @ruenzi2011 "Extreme Dependence Structures and the Cross-Section of Expected Stock Returns" page 8 & 9.
+This work attempted to generalize this finding into higher dimensional copulas. First lets look at some 2D examples. We will investigate if this works in higher dimensions in Section \ref{test_sim_inno} 
 
 ### Generatimg Some 2D Hybrid Copulas.
-This chunk of code creates and plots some pseudo hybrid copulas by linearly weighting the random numbers generated from a student-t and Clayton copula. 
+This chunk of code creates and plots some pseudo hybrid copulas by linearly weighting the random numbers generated from a student-t and Clayton copula. Note how when increasing the Clayton weight, observations concentrate at the bottom left of the density plots.
 
 ```{r hybrid, eval=FALSE, include=FALSE}
 #this chunk takes very long to knit due to large graph size; Therefore  {eval=FALSE, include=FALSE} options are used
@@ -703,20 +709,17 @@ rCopula(10000, copula = claycop) %>% as_tibble() %>% gather(Key, Value) %>%
 
 ```
 
+This section has successfully demonstrated how to use copulas to simulate random uniformly distributed data with any that adhered to the given correlation matrix. It also found a potential way to simulate data with hybrid copulas. 
+
 # Step 2: Converting the uniformly distributed variables to something that better resembles the distribution of asset returns.
 
 ## Looking at options for marginal distributions
-
-Due to convenience, it has become standard to use the normal, or student-t distribution when simulating asset returns.
-
-However, after reading up on numerous possible marginal distributions, I decided that the the Skewed generalized t distribution is a valuable alternative as it allows for the most flexibility. In fact, the SGT distribution nests 12 common probability distribution functions (pdf). The tree diagram below indicates how one can set the SGT parameters to achieve the desired pdf. 
-
-MCmarkets functions will also include arguments to induce the marginals to be uniformly, normal and student-t distributed. 
+This section looks at some candidate pdf for the univariate asset returns. Due to convenience, it has become standard to use the normal, or student-t distribution when simulating asset returns. However, after reading up on numerous possible marginal distributions, I decided that the the Skewed generalized t distribution is a valuable alternative as it allows for the most flexibility. In fact, the skewed generalized t (SGT) distribution nests 12 common probability distribution functions (pdf). The tree diagram below indicates how one can set the SGT parameters to achieve the desired pdf. MCmarkets functions will include arguments to induce the marginals to be uniform, normal, student-t and SGT distributed. 
 
 ![Plot 5.](plots/SGTtree.png)
 
 ### The skewed generalizd t distribution with different parameters
-The code below demonstrates how the p, q and $\lambda$ functions influence the SGT distribution.
+The code below demonstrates how the p, q and $\lambda$ functions influence the SGT distribution. Note how the SGT's parameters allow one to effect the skewness and kurtosis of the distribution. 
 ```{r, echo=FALSE}
 library(pacman, tidyverse)
 p_load(sgt)
@@ -782,6 +785,45 @@ legend("topleft", inset=.05, title="Distributions",
   labels, lwd=2, lty=c(1, 1, 1, 1, 2), col=colors)
 ```
 
+### Here I demonstrate how a uniformly distributed observations can be transformed into other distributions.
+
+```{r}
+# Generating a uniform (0,1) series
+set.seed(1234)
+unif <- as_tibble(runif(1000))
+unif %>% ggplot(aes(x = value)) +
+  geom_histogram() + theme_bw()
+
+# transforming into normal(0,1) distribution
+norm <- qnorm(unif$value) %>% as_tibble()
+norm  %>% ggplot(aes(x = value)) +
+  geom_histogram() + theme_bw()
+
+# transforming into t distribution with df=3
+t <- qt(unif$value, df = 3) %>% as_tibble()
+t  %>% ggplot(aes(x = value)) +
+  geom_histogram() + theme_bw()
+
+# transforming into SGT| left skewed with excess kurtosis
+sgt <-
+  qsgt(
+    unif$value,
+    mu = 1,
+    sigma = 1,
+    lambda = -0.4,
+    p = 1,
+    q = 10000
+  ) %>% as_tibble()
+sgt  %>% ggplot(aes(x = value)) +
+  geom_histogram() + theme_bw()
+
+
+
+```
+
+
+
+
 ```{r cleaning workspace, include=FALSE}
 rm(list =ls())
 gc()
@@ -790,7 +832,7 @@ gc()
 
 ### Calibrating the SGT with Architypal Low, Medium and High Risk Assets.
 
-At this stage, the infomation gathered in this section has not yet been incorporated into MCmarket. At a later stage the estimated parameters in this section will be used in the MCmarkets presets. These will allow non technical users to simulate predefined market types with no knowledge of the underlying statistical theory.
+At this stage, the infomation gathered in this section has not yet been incorporated into MCmarket. At a later stage the estimated parameters in this section will be used in the MCmarkets presets. These will allow non technical users to simulate predefined market types with no knowledge of the underlying statistical concepts. It is included for not to demonstrate the extent of my research thus far.
 
 ##### This section will most likely be scraped, due to the sensitivity of the parameters.
 
@@ -854,6 +896,8 @@ p1/p2 + plot_annotation(title = "Distribution of Annualized Returns",
 
 #### Estimating SGT
 
+This section used maximum likelihood estimation to estimate the parameters of the SGT in each market type.
+
 - See "code/filter_resid.R" to see how filtered residuals (garch.Rda) was obtained.
 - See "code/estimate_sgt.R" to see how the parameters of the sgt were estimated. 
 
@@ -904,6 +948,8 @@ df <- resid_medium_vol %>%
 load(file = "data/sgt_medium_vol.Rda")
 
 ```
+
+See the kernal density estimates of each return type with the overlayed SGT calibrated by the maximum likelihood estimation (above). Notive how poorly the hight risk SGT matches the KDE. Will need to tinker and fix this issue at a later stage. 
 
 ```{r plotting marginal distributions, eval=FALSE, include=FALSE}
 # Plot distribution function
@@ -985,17 +1031,16 @@ p1/p2 + plot_annotation(title = "Density of Medium Volitility Return's",
                         caption = "Yahoo Data")
 ```
 
-# Step 3: Introducing Volitility Persistence 
+# Step 3: Introducing Volatility Persistence 
  
-The simulated innovations do not yet demonstrate the mean and/or volatility persistence observed in real asset return series, hence why I refer to them as innovations.
+The simulated innovations do not yet demonstrate the mean and/or volatility persistence observed in real asset return series. Therefore, they can be thought of as the innovations of some time-series model/process. In this step I introduce autocorrelation and volatility using an ARMA(p,q) + APGARCH(q,p) model. 
 
-In this step I introduce autocorrelation and volatility using an ARMA(p,q) + APGARCH(q,p) model. 
-
+#### Inreresting artical on garch modeling and forecastig
 - "The leptokurtosis, clustering volatility and leverage effects characteristics of financial time series justifies the GARCH modelling approach. The non-linear characteristic of the time series is used to check the Brownian motion and investigate into the temporal evolutionary patterns. The non-linear methods of forecasting and signal analysis are gaining popularity in stock market because of their robustness in feature extraction and classification." source: https://towardsdatascience.com/garch-processes-monte-carlo-simulations-for-analytical-forecast-27edf77b2787
 
 ## sim_garch
-This function introduces mean and variance persistence by plugging in the numbers generated by the sim_inno function as innovations in the GARCH process.
-Note that most of the code was re-purposed from fGarch's garchspec and garchsim functions. 
+
+This function introduces mean and variance persistence to a series of i.i.d random numbers. Note that most of the code was re-purposed from fGarch's garchspec and garchsim functions. 
 
 ```{r sim_garch, eval=FALSE, include=TRUE}
 #' @title sim_garch
@@ -1136,6 +1181,7 @@ Note that:
 
 ```{r}
 set.seed(32156454)
+# Simulating a series of random SGT numbers
 inno <- sgt::rsgt(n = 10001, lambda = -0.0143, p = 1.6650, q = 1.9095)
 
 # Introducing Mean and Var Persistence
@@ -1184,16 +1230,16 @@ But first some toy examples that demonstrate the inner workings of sim_market ar
 p_load(MCmarket)
 
 # -------------------
-# Step 1
+# Step 1:  Draw a series of random uniformly distributed numbers across a set of variables with a specified dependence structure.
 # ------------------
 D <- 10 # Dimention
 k <- 1000 # number of periods
 
-# Create correlation matrix
+# Create correlation matrix.
 corr <- gen_corr(D, cluster = "non-overlapping", num_clusters = 2)
 
+# Specify and copula and simulate uniformly distributed numbers.
 ncop <- ellipCopula(family = "normal", dispstr = "un", param = P2p(corr), dim = D)
-
 set.seed(1234)
 data <- rCopula(k, ncop)
 
@@ -1215,7 +1261,7 @@ data %>% ggplot() +
   theme(legend.position = "none")
 
 # ----------------
-# Step 2
+# Step 2: Converting the uniformly distributed variables to something that better resembles the distribution of asset returns.
 # ---------------
 # First set the mean and sd for each asset
 args <- tibble(Asset = glue::glue("Asset_{1:D}") %>% as.character()) %>%
@@ -1245,7 +1291,7 @@ data %>% ggplot() +
   theme(legend.position = "none")
 
 # ---------------
-# Step 3
+# Step 3: Introducing Volatility Persistence 
 # ---------------
 # Tibble with with garh parameters and defaults
 ts_args <- tibble(Asset = glue::glue("Asset_{1:D}") %>% as.character()) %>%
@@ -1314,6 +1360,10 @@ data %>% group_by(Asset) %>% mutate(mean = mean(Return),
 
 
 ### sim_market
+
+This is the main function in the MC market package, It performs the first three steps of the MCcarlo process. See the Roxygen documentation below for further detail.
+
+For the purpose of this readme this version of sim_inno is slightly different to that in the final version of MCmarket. 
 
 ```{r old sim_inno function, eval=TRUE, include=TRUE}
 #' @title sim_market
@@ -1582,9 +1632,9 @@ sim_market <- function(corr,
 }
 ```
 
-### Testing sim_inno
+### Testing sim_inno \lable{test_sim_inno}
 
-This code simply tests and demonstrates the functionality of sim_inno. 
+This code tests sim_inno and demonstrates its functionality. 
 
 ```{r sim_inno test, fig.width=10, fig.height=10, fig.align=TRUE}
 
@@ -1613,16 +1663,17 @@ data_sgt <- sim_market(corr = Corr,
                  marginal_dist = "sgt",
                  marginal_dist_model = sgt_pars,
                  k = 500)
+```
 
-# Seems to work very well.
-# But does it work with left_cop_weight =! 0?
+The above seems to work very well, but does it work with left_cop_weight =! 0? i.e. does the MC framework function as intended when using a hybrid copula. 
 
+```{r}
 set.seed(123)
 data_nlc <- sim_market(corr = Corr, 
                        mv_dist = "t",
                        mv_df = 4,
                        left_cop_param = 5,
-                       left_cop_weight = 0,
+                       left_cop_weight = 0,  # Only t copula
                        marginal_dist = "norm",
                        marginal_dist_model = list(mu = 0, sd = 1),
                        k = 500)
@@ -1631,7 +1682,7 @@ data_lc <- sim_market(corr = Corr,
                       mv_dist = "t",
                       mv_df = 4,
                       left_cop_param = 5,
-                      left_cop_weight = 0.5,
+                      left_cop_weight = 0.5,  # t - Clayton copula hybrid
                       marginal_dist = "norm",
                       marginal_dist_model = list(mu = 0, sd = 1),
                       k = 500)
@@ -1640,23 +1691,23 @@ data_lco <- sim_market(corr = Corr,
                       mv_dist = "t",
                       mv_df = 4,
                       left_cop_param = 5,
-                      left_cop_weight = 1,
+                      left_cop_weight = 1,  # Only Clayton copula
                       marginal_dist = "norm",
                       marginal_dist_model = list(mu = 0, sd = 1),
                       k = 500)
 
-# checking sd's
+# checking sd's: They are Not being set correctly in the hybrid copula
 data_nlc %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd = 1
 data_lc %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd approx = 0.58
 data_lco %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd approx = 1
 
-# Something is not working as intended???
-
-
 ```
+
+The above code demonstrates that the SD of asset returns is not being set correctly when trying to simulate from hybrid copulas. This may be because Tawn's theorem only applied to bivariate copulas. Will be investigated in the future. 
 
 # Step 4: Simulating an Ensemble of Asset Markets
 
+This step turns the first three steps discussed thus far into a Monte Carlo simulation. This is done by simply repeating the first three steps a number of times. 
 The mc_market function performs the Monte Carlo simulation of asset markets.
 
 ## mc_market
@@ -1822,6 +1873,8 @@ mc_data %>%
 
 ### sim_market_with_progress Example
 
+One produce a progress bar when mapping over sim_market.
+
 ```{r sim_market with progress bar example}
 rm(sim_market)
 library(MCmarket)
@@ -1835,4 +1888,8 @@ market <-
 object.size(x = market) %>% print(units = "Mb")
 
 ```
+
+# Readme Summary
+
+This readme accomplished its aim in developing a framework or the Monte Carlo simulation of financial asset markets. There was an investigation into using hybrid copulas to create markets with varying levels of left tail dependency, however, the this proves unsuccessful in high dimensions. Simulated markets can be have the normal, t or Clayton multivariate distributions. The assets returns can be normal, student t or SGT distributed and can exhibit numerous APARCH properties. In addition, markets with the multivariate normal or t distribution can be created to have any correlation matrix. 
 

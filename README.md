@@ -69,13 +69,18 @@ p_load(tbl2xts, fGarch, forecast)
 
 # The Set up
 
+Since a correlation matrix is the key input in the Monte Carlo
+simulation framework this section covers the creation of some *ad hoc*
+correlation matrices using the MCmarkets::sim\_corr function, as well
+as, the estimation of some empirical correlation matrices using S\&P500
+data.
+
 ## Generating Ad Hoc Covarience matrix
 
 In this section I developed a simple function that allows the user to
 easily generate a correlation matrix with a desired correlation
-structure. This will be used as a key input when simulating the
-financial markets. Note that the majority of the code was provided by
-Nico Katzke. The function is located in the gen\_corr.R code file.
+structure. Note that the majority of the code was provided by Nico
+Katzke. The function is located in the gen\_corr.R code file.
 
 ### gen\_corr
 
@@ -225,33 +230,36 @@ gen_corr(D = 60, clusters = "overlapping", num_clusters = c(10,5,4,2)) %>% ggcor
 
 ## Creating a Dataset of Emperical Correlation Matrices
 
-Since it would also be useful for MCmarkets’s users to have easy acess
-to some labeled empirical correlation matrices, a data set containing
+Since it would also be useful for MCmarkets’s users to have easy access
+to some empirical correlation matrices, a data set containing
 correlation matrices labeled “stressed”, “rally” and “normal” is now
 constructed.
 
 S\&P500 data since 1/01/2000 is used to sample covariance matrices that
 can be used as inputs in the Monte Carlo procedure. These matrices will
 be made available as part of the MCmarket package. They can also be used
-at a train Generative adversarial network (GAN) models, like CorrGAN
-(<https://marti.ai>).
+generative correlation models, like CorrGAN (<https://marti.ai>). At a
+later stage MCmarket may incorporate some generative correlation matrix
+models, preferably those like the conditional CorrGAN or conditional
+CorrVAE. this will allow users to randomly simulate different types of
+realistic correlation matrices.
 
-Note that none of the code in this section is run when building this
-README, It would simply take forever to knit this document.
+Note that this code is not run when building this README, it would
+simply take too long to knit this document.
 
 #### Getting SNP 500 data since 2000
 
-  - The code below pulls in SNP 500 data since 2000/01/01.
-
-<!-- end list -->
-
 ``` r
 pacman::p_load(tidyverse, tidyquant, lubridate)
+
+# impute missing returns from fin merics tut is used to fill in missing data
 source("code/impute_missing_returns.R")
 
 # save current system date to a variable
 today <- Sys.Date()
+# subtract 90 months from the current date| this is used at a later stage. 
 #date <- today %m+% months(-90)
+# saving from date
 date <- as.Date("2000-01-01")
 
 # Getting all tickers in SP500
@@ -319,7 +327,6 @@ Note that this methodology is consistent with that used in
 
 ``` r
 load("data/SNP_returns.Rda")
-
 
 #Packages used in chunk
 library(pacman)
@@ -390,6 +397,7 @@ gen_random_port <- function(dim = 100, sharp = TRUE) {
         }
     return(training_data)
 }
+
 #------------------------------------------
 #First I generate the labeled training data
 #------------------------------------------
@@ -499,19 +507,23 @@ matrices before being plotted.
 
 <img src="README_files/figure-gfm/showing some training data-1.png" width="80%" height="80%" /><img src="README_files/figure-gfm/showing some training data-2.png" width="80%" height="80%" /><img src="README_files/figure-gfm/showing some training data-3.png" width="80%" height="80%" />
 
-# Building the Monte Carlo Framework
+# Building the Monte Carlo
 
 ## Step 1: Draw a series of random uniformly distributed numbers across a set of variables with a specified dependence structure.
 
 ### Generating Random Draws Using Various Copulas
 
+This section explores the feasibility of using various types of copulas
+as part of the Monte Carlo framework.
+
 #### Elliptal copulas
 
-the Gaussian and t Elliptal copulas allow us to specify a correlation
-matrix before randomly selecting observations from the multivariate
-distribution. Doing so allows one to produce random draws of uniformly
-distributed variables that adhere to the user specified correlation
-structure. The chunk of code below demonstrates this functionality.
+The Gaussian and t Elliptal copulas allow us to specify their
+correlation matrix before randomly selecting observations from their
+multivariate distribution. Doing so allows one to produce random draws
+of uniformly distributed variables that adhere to the user specified
+correlation structure. The chunk of code below demonstrates this
+functionality.
 
 ``` r
 #loading copula package; already loaded
@@ -582,11 +594,16 @@ p1
 
 ### Archimedean Copulas
 
+This work seeked out a method to produce simulated markets with high
+left tail dependence. This would in theory enable the simulation of
+markets in which the correlation between assets increases when when
+overall asset returns are low. (i.e. during crisis periods)
+
 Unfortunately, Elliptal copulas cannot be calibrated to exhibit dynamic
-correlations (i.e left-tail dependence). And Archimedean copulas don’t
-allow us to stipulate their surrelation structure, that is not via a
-correlation matrix. Therefore, in this section we examine some
-properties of Archimedean copulas which do exhibit this characteristic.
+correlations (i.e left-tail dependence). Therefore, in this section we
+examine some properties of Archimedean copulas which do exhibit
+left-tail dependence. Unfortunately, Archimedean copulas don’t allow us
+to stipulate their correlation matrix.
 
 Archimedean copulas such as the Clayton, Frank, Gumbel and Joe exhibit
 higher levels of dependence at the tails of the multivariate
@@ -594,14 +611,14 @@ distribution. In this section we will examine the Clayton copula due to
 it exhibiting enhanced left-tail dependencies. Other copulas have been
 examined, but the Clayton copula is currently the only Archimedean
 copula, in the copula package, that allows random sampling from
-multivariate distributions with Dim \> 2. Additionally, the other
-copulas have to be rotated 180 degrees to exhibit left-tail dependence
-(since they naturally posses right-tail dependence). This rotation step
-can be quite time consuming and often fails in higher dimensions.
-Therefore, the choice to focus on only using the Clayton copula was
-largely due to practical concerns raised when tinkering with alternative
-copulas. Therefore, in future work it would be beneficial to explore
-alternative high dimensional, left-tail copulas.
+multivariate distributions with with large dimensions. Additionally, the
+other copulas have to be rotated 180 degrees to exhibit left-tail
+dependence (since they naturally posses right-tail dependence). This
+rotation step can be quite time consuming and often fails in higher
+dimensions. Therefore, the choice to focus on only using the Clayton
+copula was largely due to practical concerns raised when tinkering with
+alternative copulas. Therefore, in future work it would be beneficial to
+explore alternative high dimensional, left-tail copulas.
 
 ``` r
 # first look at at dim=2 to get understanding of what parameter tning does
@@ -704,13 +721,23 @@ rCopula(1000, galcop) %>% plot()
 
 ## Hybrid Copulas
 
-Sklar’s (1959) Theorem: States that a copula is a convex set and every
-convex combination of existing copula functions is again a copula.
+Since this project wanted to include the left-tail dependence property
+from the Clayton copula and the ability to specify the correlation
+matrix from the Elliptal copulas, there was an investigation into the
+creation of hybrid copulas.
+
+@ruenzi states that flexible copula structures an be created through
+convex combinations of basic copulas. The authors use the 2D case and
+Tawn’s theorem (below) to construct hybrid bivariate copulas.
+
+Tawn (1988) “shows that a copula is a convex set and every convex
+combination of existing copula functions is again a copula”
+\[@ruenzi2011, p.8\].
 
 Thus, if ![C\_1(U\_N)](https://latex.codecogs.com/png.latex?C_1%28U_N%29
 "C_1(U_N)") and
 ![C\_2(U\_N)](https://latex.codecogs.com/png.latex?C_2%28U_N%29
-"C_2(U_N)") are multivariate copula’s of dimension D and
+"C_2(U_N)") are 2D copulas and
 ![w](https://latex.codecogs.com/png.latex?w "w") is a weighting variable
 between 0 and 1, then
 
@@ -725,10 +752,11 @@ between 0 and 1, then
 is a unique copula. Therefore, a hybrid copula
 ![C(U\_N)](https://latex.codecogs.com/png.latex?C%28U_N%29 "C(U_N)") can
 be created by linearly weighting an Elliptical and Archimedean copula of
-the same dimension.
+the dimension 2.
 
-See @ruenzi2011 “Extreme Dependence Structures and the Cross-Section of
-Expected Stock Returns” page 8 & 9.
+This work attempted to generalize this finding into higher dimensional
+copulas. First lets look at some 2D examples. We will investigate if
+this works in higher dimensions in Section 
 
 ### Generatimg Some 2D Hybrid Copulas.
 
@@ -742,22 +770,26 @@ Clayton copula.
 Remember that each variable is still currently uniformly distributed.
 <img src="README_files/figure-gfm/unnamed-chunk-1-1.png" width="80%" height="80%" />
 
+This section has successfully demonstrated how to use copulas to
+simulate random uniformly distributed data with any that adhered to the
+given correlation matrix. It also found a potential way to simulate data
+with hybrid copulas.
+
 # Step 2: Converting the uniformly distributed variables to something that better resembles the distribution of asset returns.
 
 ## Looking at options for marginal distributions
 
-Due to convenience, it has become standard to use the normal, or
-student-t distribution when simulating asset returns.
-
-However, after reading up on numerous possible marginal distributions, I
-decided that the the Skewed generalized t distribution is a valuable
-alternative as it allows for the most flexibility. In fact, the SGT
-distribution nests 12 common probability distribution functions (pdf).
-The tree diagram below indicates how one can set the SGT parameters to
-achieve the desired pdf.
-
-MCmarkets functions will also include arguments to induce the marginals
-to be uniformly, normal and student-t distributed.
+This section looks at some candidate pdf for the univariate asset
+returns. Due to convenience, it has become standard to use the normal,
+or student-t distribution when simulating asset returns. However, after
+reading up on numerous possible marginal distributions, I decided that
+the the Skewed generalized t distribution is a valuable alternative as
+it allows for the most flexibility. In fact, the skewed generalized t
+(SGT) distribution nests 12 common probability distribution functions
+(pdf). The tree diagram below indicates how one can set the SGT
+parameters to achieve the desired pdf. MCmarkets functions will include
+arguments to induce the marginals to be uniform, normal, student-t and
+SGT distributed.
 
 ![Plot 5.](plots/SGTtree.png)
 
@@ -765,8 +797,64 @@ to be uniformly, normal and student-t distributed.
 
 The code below demonstrates how the p, q and
 ![\\lambda](https://latex.codecogs.com/png.latex?%5Clambda "\\lambda")
-functions influence the SGT distribution.
+functions influence the SGT distribution. Note how the SGT’s parameters
+allow one to effect the skewness and kurtosis of the distribution.
 <img src="README_files/figure-gfm/unnamed-chunk-2-1.png" width="80%" height="80%" /><img src="README_files/figure-gfm/unnamed-chunk-2-2.png" width="80%" height="80%" /><img src="README_files/figure-gfm/unnamed-chunk-2-3.png" width="80%" height="80%" />
+
+### Here I demonstrate how a uniformly distributed observations can be transformed into other distributions.
+
+``` r
+# Generating a uniform (0,1) series
+set.seed(1234)
+unif <- as_tibble(runif(1000))
+unif %>% ggplot(aes(x = value)) +
+  geom_histogram() + theme_bw()
+```
+
+    ## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+
+<img src="README_files/figure-gfm/unnamed-chunk-3-1.png" width="80%" height="80%" />
+
+``` r
+# transforming into normal(0,1) distribution
+norm <- qnorm(unif$value) %>% as_tibble()
+norm  %>% ggplot(aes(x = value)) +
+  geom_histogram() + theme_bw()
+```
+
+    ## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+
+<img src="README_files/figure-gfm/unnamed-chunk-3-2.png" width="80%" height="80%" />
+
+``` r
+# transforming into t distribution with df=3
+t <- qt(unif$value, df = 3) %>% as_tibble()
+t  %>% ggplot(aes(x = value)) +
+  geom_histogram() + theme_bw()
+```
+
+    ## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+
+<img src="README_files/figure-gfm/unnamed-chunk-3-3.png" width="80%" height="80%" />
+
+``` r
+# transforming into SGT| left skewed with excess kurtosis
+sgt <-
+  qsgt(
+    unif$value,
+    mu = 1,
+    sigma = 1,
+    lambda = -0.4,
+    p = 1,
+    q = 10000
+  ) %>% as_tibble()
+sgt  %>% ggplot(aes(x = value)) +
+  geom_histogram() + theme_bw()
+```
+
+    ## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+
+<img src="README_files/figure-gfm/unnamed-chunk-3-4.png" width="80%" height="80%" />
 
 ### Calibrating the SGT with Architypal Low, Medium and High Risk Assets.
 
@@ -774,7 +862,8 @@ At this stage, the infomation gathered in this section has not yet been
 incorporated into MCmarket. At a later stage the estimated parameters in
 this section will be used in the MCmarkets presets. These will allow non
 technical users to simulate predefined market types with no knowledge of
-the underlying statistical theory.
+the underlying statistical concepts. It is included for not to
+demonstrate the extent of my research thus far.
 
 ##### This section will most likely be scraped, due to the sensitivity of the parameters.
 
@@ -821,19 +910,28 @@ medium_vol <-
 
 #### Estimating SGT
 
+This section used maximum likelihood estimation to estimate the
+parameters of the SGT in each market type.
+
   - See “code/filter\_resid.R” to see how filtered residuals (garch.Rda)
     was obtained.
   - See “code/estimate\_sgt.R” to see how the parameters of the sgt were
     estimated.
 
+See the kernal density estimates of each return type with the overlayed
+SGT calibrated by the maximum likelihood estimation (above). Notive how
+poorly the hight risk SGT matches the KDE. Will need to tinker and fix
+this issue at a later stage.
+
 # Step 3: Introducing Volitility Persistence
 
 The simulated innovations do not yet demonstrate the mean and/or
-volatility persistence observed in real asset return series, hence why I
-refer to them as innovations.
+volatility persistence observed in real asset return series. Therefore,
+they can be thought of as the innovations of some time-series
+model/process. In this step I introduce autocorrelation and volatility
+using an ARMA(p,q) + APGARCH(q,p) model.
 
-In this step I introduce autocorrelation and volatility using an
-ARMA(p,q) + APGARCH(q,p) model.
+#### Inreresting artical on garch modeling and forecastig
 
   - “The leptokurtosis, clustering volatility and leverage effects
     characteristics of financial time series justifies the GARCH
@@ -847,10 +945,9 @@ ARMA(p,q) + APGARCH(q,p) model.
 
 ## sim\_garch
 
-This function introduces mean and variance persistence by plugging in
-the numbers generated by the sim\_inno function as innovations in the
-GARCH process. Note that most of the code was re-purposed from fGarch’s
-garchspec and garchsim functions.
+This function introduces mean and variance persistence to a series of
+i.i.d random numbers. Note that most of the code was re-purposed from
+fGarch’s garchspec and garchsim functions.
 
 ``` r
 #' @title sim_garch
@@ -989,6 +1086,7 @@ sim\_garch is a deterministic function.
 
 ``` r
 set.seed(32156454)
+# Simulating a series of random SGT numbers
 inno <- sgt::rsgt(n = 10001, lambda = -0.0143, p = 1.6650, q = 1.9095)
 
 # Introducing Mean and Var Persistence
@@ -1016,7 +1114,7 @@ p1/p2 + plot_annotation(title = "SGT Innovations vs APGARCH Returns")
 
     ## Warning: Removed 1 row(s) containing missing values (geom_path).
 
-<img src="README_files/figure-gfm/unnamed-chunk-3-1.png" width="80%" height="80%" />
+<img src="README_files/figure-gfm/unnamed-chunk-4-1.png" width="80%" height="80%" />
 
 ``` r
 p1 <- ggAcf(inno^2)+ theme_bw()+ labs(title = "ACF of Squared Innovations")
@@ -1024,7 +1122,7 @@ p2 <- ggAcf(return^2) + theme_bw() + labs(title = "ACF of Squared Returns")
 p1/p2
 ```
 
-<img src="README_files/figure-gfm/unnamed-chunk-3-2.png" width="80%" height="80%" />
+<img src="README_files/figure-gfm/unnamed-chunk-4-2.png" width="80%" height="80%" />
 
 ## Simulating Returns
 
@@ -1098,16 +1196,16 @@ data %>% group_by(Asset) %>% mutate(mean = mean(Return),
     ## # Groups:   Asset [10]
     ##    date       Asset    Return     mean    sd
     ##    <date>     <chr>     <dbl>    <dbl> <dbl>
-    ##  1 2021-01-26 Asset_1  -1.19   0.0425  1.02 
-    ##  2 2021-01-26 Asset_2  -0.251  0.00429 1.02 
-    ##  3 2021-01-26 Asset_3   0.259  0.0168  0.999
-    ##  4 2021-01-26 Asset_4  -1.91   0.00639 1.02 
-    ##  5 2021-01-26 Asset_5  -0.156  0.0267  1.00 
-    ##  6 2021-01-26 Asset_6  -0.181 -0.00721 0.972
-    ##  7 2021-01-26 Asset_7  -0.865  0.0258  0.963
-    ##  8 2021-01-26 Asset_8  -0.847 -0.0127  0.963
-    ##  9 2021-01-26 Asset_9  -0.859  0.0172  0.928
-    ## 10 2021-01-26 Asset_10 -1.06  -0.00700 0.972
+    ##  1 2021-01-27 Asset_1  -1.19   0.0425  1.02 
+    ##  2 2021-01-27 Asset_2  -0.251  0.00429 1.02 
+    ##  3 2021-01-27 Asset_3   0.259  0.0168  0.999
+    ##  4 2021-01-27 Asset_4  -1.91   0.00639 1.02 
+    ##  5 2021-01-27 Asset_5  -0.156  0.0267  1.00 
+    ##  6 2021-01-27 Asset_6  -0.181 -0.00721 0.972
+    ##  7 2021-01-27 Asset_7  -0.865  0.0258  0.963
+    ##  8 2021-01-27 Asset_8  -0.847 -0.0127  0.963
+    ##  9 2021-01-27 Asset_9  -0.859  0.0172  0.928
+    ## 10 2021-01-27 Asset_10 -1.06  -0.00700 0.972
     ## # ... with 9,990 more rows
 
 ``` r
@@ -1204,16 +1302,16 @@ data %>% group_by(Asset) %>% mutate(mean = mean(Return),
     ## # Groups:   Asset [10]
     ##    date       Asset     Return     mean    sd
     ##    <date>     <chr>      <dbl>    <dbl> <dbl>
-    ##  1 2021-01-26 Asset_1   0.0251 -0.0223  0.585
-    ##  2 2021-01-26 Asset_2   0.251   0.0142  0.587
-    ##  3 2021-01-26 Asset_3   0.422  -0.00467 0.603
-    ##  4 2021-01-26 Asset_4   0.279  -0.00350 0.609
-    ##  5 2021-01-26 Asset_5   0.528  -0.00340 0.600
-    ##  6 2021-01-26 Asset_6  -0.560   0.00799 0.602
-    ##  7 2021-01-26 Asset_7  -0.860   0.0220  0.603
-    ##  8 2021-01-26 Asset_8  -0.733  -0.00430 0.586
-    ##  9 2021-01-26 Asset_9  -0.728   0.00940 0.587
-    ## 10 2021-01-26 Asset_10 -0.829  -0.00975 0.606
+    ##  1 2021-01-27 Asset_1   0.0251 -0.0223  0.585
+    ##  2 2021-01-27 Asset_2   0.251   0.0142  0.587
+    ##  3 2021-01-27 Asset_3   0.422  -0.00467 0.603
+    ##  4 2021-01-27 Asset_4   0.279  -0.00350 0.609
+    ##  5 2021-01-27 Asset_5   0.528  -0.00340 0.600
+    ##  6 2021-01-27 Asset_6  -0.560   0.00799 0.602
+    ##  7 2021-01-27 Asset_7  -0.860   0.0220  0.603
+    ##  8 2021-01-27 Asset_8  -0.733  -0.00430 0.586
+    ##  9 2021-01-27 Asset_9  -0.728   0.00940 0.587
+    ## 10 2021-01-27 Asset_10 -0.829  -0.00975 0.606
     ## # ... with 9,990 more rows
 
 ### sim\_market
@@ -1483,7 +1581,7 @@ sim_market <- function(corr,
 }
 ```
 
-### Testing sim\_inno
+### Testing sim\_inno 
 
 This code simply tests and demonstrates the functionality of sim\_inno.
 
@@ -1557,16 +1655,16 @@ data_nlc %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd = 1
     ## # Groups:   Asset [50]
     ##    date       Asset    Return    sd
     ##    <date>     <glue>    <dbl> <dbl>
-    ##  1 2021-01-27 Asset_1   0.405 0.980
-    ##  2 2021-01-27 Asset_2   0.305 1.01 
-    ##  3 2021-01-27 Asset_3   0.299 1.03 
-    ##  4 2021-01-27 Asset_4   0.785 1.03 
-    ##  5 2021-01-27 Asset_5   0.233 1.00 
-    ##  6 2021-01-27 Asset_6   0.803 1.01 
-    ##  7 2021-01-27 Asset_7  -0.285 0.991
-    ##  8 2021-01-27 Asset_8   0.489 0.999
-    ##  9 2021-01-27 Asset_9   0.326 0.983
-    ## 10 2021-01-27 Asset_10  0.359 0.990
+    ##  1 2021-01-28 Asset_1   0.405 0.980
+    ##  2 2021-01-28 Asset_2   0.305 1.01 
+    ##  3 2021-01-28 Asset_3   0.299 1.03 
+    ##  4 2021-01-28 Asset_4   0.785 1.03 
+    ##  5 2021-01-28 Asset_5   0.233 1.00 
+    ##  6 2021-01-28 Asset_6   0.803 1.01 
+    ##  7 2021-01-28 Asset_7  -0.285 0.991
+    ##  8 2021-01-28 Asset_8   0.489 0.999
+    ##  9 2021-01-28 Asset_9   0.326 0.983
+    ## 10 2021-01-28 Asset_10  0.359 0.990
     ## # ... with 24,990 more rows
 
 ``` r
@@ -1577,16 +1675,16 @@ data_lc %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd approx = 0.58
     ## # Groups:   Asset [50]
     ##    date       Asset     Return    sd
     ##    <date>     <glue>     <dbl> <dbl>
-    ##  1 2021-01-27 Asset_1   0.349  0.573
-    ##  2 2021-01-27 Asset_2  -0.140  0.571
-    ##  3 2021-01-27 Asset_3   0.275  0.564
-    ##  4 2021-01-27 Asset_4   0.182  0.579
-    ##  5 2021-01-27 Asset_5   0.306  0.577
-    ##  6 2021-01-27 Asset_6   0.0166 0.597
-    ##  7 2021-01-27 Asset_7   0.0428 0.582
-    ##  8 2021-01-27 Asset_8   0.0804 0.580
-    ##  9 2021-01-27 Asset_9   0.289  0.574
-    ## 10 2021-01-27 Asset_10  0.420  0.584
+    ##  1 2021-01-28 Asset_1   0.349  0.573
+    ##  2 2021-01-28 Asset_2  -0.140  0.571
+    ##  3 2021-01-28 Asset_3   0.275  0.564
+    ##  4 2021-01-28 Asset_4   0.182  0.579
+    ##  5 2021-01-28 Asset_5   0.306  0.577
+    ##  6 2021-01-28 Asset_6   0.0166 0.597
+    ##  7 2021-01-28 Asset_7   0.0428 0.582
+    ##  8 2021-01-28 Asset_8   0.0804 0.580
+    ##  9 2021-01-28 Asset_9   0.289  0.574
+    ## 10 2021-01-28 Asset_10  0.420  0.584
     ## # ... with 24,990 more rows
 
 ``` r
@@ -1597,16 +1695,16 @@ data_lco %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd approx = 1
     ## # Groups:   Asset [50]
     ##    date       Asset    Return    sd
     ##    <date>     <glue>    <dbl> <dbl>
-    ##  1 2021-01-27 Asset_1   0.692 1.03 
-    ##  2 2021-01-27 Asset_2   0.169 1.00 
-    ##  3 2021-01-27 Asset_3   0.844 1.01 
-    ##  4 2021-01-27 Asset_4   0.544 1.04 
-    ##  5 2021-01-27 Asset_5   0.449 1.04 
-    ##  6 2021-01-27 Asset_6   0.487 1.04 
-    ##  7 2021-01-27 Asset_7   0.333 1.04 
-    ##  8 2021-01-27 Asset_8   0.520 1.05 
-    ##  9 2021-01-27 Asset_9   1.49  0.981
-    ## 10 2021-01-27 Asset_10  0.750 1.02 
+    ##  1 2021-01-28 Asset_1   0.692 1.03 
+    ##  2 2021-01-28 Asset_2   0.169 1.00 
+    ##  3 2021-01-28 Asset_3   0.844 1.01 
+    ##  4 2021-01-28 Asset_4   0.544 1.04 
+    ##  5 2021-01-28 Asset_5   0.449 1.04 
+    ##  6 2021-01-28 Asset_6   0.487 1.04 
+    ##  7 2021-01-28 Asset_7   0.333 1.04 
+    ##  8 2021-01-28 Asset_8   0.520 1.05 
+    ##  9 2021-01-28 Asset_9   1.49  0.981
+    ## 10 2021-01-28 Asset_10  0.750 1.02 
     ## # ... with 24,990 more rows
 
 ``` r
@@ -1778,7 +1876,7 @@ mc_data %>%
   theme(legend.position = "none") 
 ```
 
-<img src="README_files/figure-gfm/unnamed-chunk-5-1.png" width="80%" height="80%" />
+<img src="README_files/figure-gfm/unnamed-chunk-6-1.png" width="80%" height="80%" />
 
 ### sim\_market\_with\_progress Example
 

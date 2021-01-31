@@ -151,7 +151,7 @@ Stellenbosch University
 <section class="abstract" property="dc:abstract">
 <h2 class="abstract-header">Abstract</h2>
 <div class="abstract-content">
-<p>This work presents <em>MCmarket</em> an R package designed to provide users with the tools to carry out the Monte Carlo simulation of asset markets. The framework set out in the package uses Elliptical copulas to give rise to the correlation structure and the Archimedean Clayton copula to induce left-tail dependence (or dynamic correlations). Various ARMA + GARCH models can also be called apon to produce mean and varience persistence. <strong>Non technical users will be able to select between X presets to induce varying degrees of market risk without requiring prior knowedge of the underlying statistical techniques</strong>.</p>
+<p>This work presents <em>MCmarket</em>, an R package designed to provide users with the tools to easily perform the Monte Carlo simulation of financial asset markets. The framework set out in the package allows users to specify the market’s cross-section dependence structure using the multivariate distributions described by the normal, t and Clayton copulas. The asset return series can be set according to the normal, t or skewed generalized t probability distribution functions (pdf). Mean and variance persistence can then be induced by invoking the an ARMA + APGARCH model. Among others, this package can be used for in risk risk management, asset/derivative pricing and evaluating/robustness-testing portfolio trading algorithms.</p>
 </div>
 <section class="keywords" role="list" aria-labelledby="keywords-header">
 <p><span id="keywords-header" class="keywords-heading" aria-level="3" role="heading">Keywords</span>: <span role="listitem">monte carlo</span>, <span role="listitem">copula</span>, <span role="listitem">garch</span>.</p>
@@ -161,19 +161,15 @@ Stellenbosch University
 <main role="main">
 <div id="introduction" class="section level1">
 <h1><span class="header-section-number">1</span> Introduction</h1>
-<p>In the field of quantitative finance, Monte Carlo simulations have been used extensively for risk management, as well as in the evaluation of portfolio optimisation algorithms. Their unique ability to generate an ensemble of counterfactuals i.e. possible alternative realizations of stochastic processes with identical characteristics, makes them a uniquely powerful tool in aiding decision making in domains dominated by randomness. They are also relatively easy to construct compared to alternative techniques that rely on complex mathematics. Meanwhile, the steady improvement in computer processing power has made the more sophisticated Monte Carlo techniques increasingly viable. The key input to financial market Monte Carlo frameworks is the markets correlation matrix as this greatly effects the potential for diversification and risk management within each counterfactual market.</p>
-<p>This work lays out a pre-established framework for performing Monte Carlo simulations of financial asset market returns, with a unique alteration that produces increased left-tail dependence. In other words, the correlation between assets increases during bear markets, and market crashes in particular. This functionality is particularly useful when simulating asset markets since it is a well documented phenomenon that financial returns experience increased co-dependence during turbulent times <span class="citation">(Syriopoulos and Roumpis <a href="#ref-syriopoulos2009" role="doc-biblioref">2009</a>)</span>. The simulated markets will adhere to the user-defined correlation structure. This framework also provides the functionality to induce various degrees of mean and variance persistence. This is accomplished with a high degree of precision by setting the exact parameters of an ARIMA(p,q) + APGARCH(q,p) equation for which the series will adhere.</p>
-<p>The aim of developing this package was to provide users with a set of functions that enable them to simulate financial market data with a highly generalizable set of risk factors, minimal knowledge of coding and/or the underlying mathematical/statistical techniques. Due to the importance of dynamic correlations experienced within financial markets during crisis periods, an avenue to induce various levels of the left-tail dependence within the market multivariate distribution was also implemented. <strong>PRESETS</strong></p>
+<p>In the field of quantitative finance, Monte Carlo simulations have been used extensively in the evaluation of portfolio optimization algorithms, risk management and the pricing of financial securities. Their unique ability to generate an ensemble of counterfactuals i.e. possible alternative realizations of stochastic processes with identical characteristics, makes them a uniquely powerful tool in aiding decision making in domains dominated by random events. They are also relatively easy to construct compared to alternative techniques that rely on complex mathematics. Meanwhile, the steady improvement in computer processing power has made the more sophisticated Monte Carlo techniques increasingly viable.</p>
+<p>This work lays out a generalized adaption of a pre-established framework for performing the Monte Carlo simulation of financial asset market returns. Importantly, the simulated markets will adhere to the user-defined correlation structure. This framework also provides the functionality to induce various return distributions, as well as, specify their mean and variance persistence. The setting of time-series persistence is accomplished with a high degree of precision, as the exact parameters of each assets ARIMA(p,q) + APGARCH(q,p) equation can be set be specified. The key input to this financial market Monte Carlo frameworks is the markets correlation matrix as this greatly effects the potential for diversification and risk management within each counterfactual market. An interesting addition to this package is the option to use the Clayton copula to simulate market’s multivariate distribution/cross-sectional dependence, this removes the users ability to stipulate the market correlation structure but does create markets with left-tail dependence. In other words, when using the Clayton copula, the correlation between assets increases during bear markets, and market crashes in particular. This functionality is particularly useful when simulating asset markets since it is a well documented phenomenon that financial returns experience increased co-dependence during turbulent times <span class="citation">(Syriopoulos and Roumpis <a href="#ref-syriopoulos2009" role="doc-biblioref">2009</a>)</span>.</p>
+<p>The aim of developing this package was to provide users with a set of functions that enable them to simulate financial market data with a highly generalizable set of risk factors, minimal knowledge of coding and/or the underlying mathematical/statistical techniques. Due to the importance of dynamic correlations experienced within financial markets during crisis periods, an avenue to induce various levels of the left-tail dependence within the market multivariate distribution was also implemented. At this stage the package presents a highly generalized tool for simulating financial markets that users with prior knowledge of probability distributions and time-series models can grasp. At a later stage a dashboard will be created for non-technical users to be able to simulate markets from a list of presets. Furthermore, the Monte Carlo frame work will be extended to enable regime shifts, in the correlation structure, using a Markov process.</p>
 </div>
 <div id="methodology" class="section level1">
 <h1><span class="header-section-number">2</span> Methodology</h1>
-<p>The MCmarket package uses copula’s to define the markets multivariate distributions, these distributions are then used to produce random, uniformly distributed, draws which serve as the starting point of the Monte Carlo process and are the only source of randomness <span class="citation">(Ruppert and Matteson <a href="#ref-ruppert" role="doc-biblioref">2011</a>)</span>. Note that the distribution these random draws are referred to as marginal distributions while the variables themselves are referred to as marginals. A useful way to think of a copula is as a multivariate cumulative distribution function (CDF) with Uniform (0,1) marginal distributions <span class="citation">(Ruppert and Matteson <a href="#ref-ruppert" role="doc-biblioref">2011</a>[p. 183])</span>. Therefore, copulas contain only information on the dependencies within the multivariate distribution as they all posses the same marginal CDFs <span class="citation">(Ruppert and Matteson <a href="#ref-ruppert" role="doc-biblioref">2011</a>)</span>.</p>
-<p>MCmarket incorporates two broad families of copula’s, namely the Elliptical and Archimedean. The Elliptical Gaussian and t-copula’s define the respective multivariate normal and t distributions, these are used for their convenient property of relying on a <span class="math inline">\(D \times D\)</span> correlation matrix to define their distribution. Archimedean copula’s, on the other hand, define distributions which exhibit either left or right tail dependence. This refers to an increase in dependence within either the left or tail of the multivariate distribution, where dependence tends to increases as observations occur further in the tails. Due to issues concerning the speed of computation and functionality within high dimensions only the the Clayton copula is used. The Clayton copula was found to be particularly useful since it naturally possesses left-tail dependence and can be defined in high dimension spaces with limited cost to computation speed.</p>
-<p>Tawn’s (1988) theorem states that a linear weighted combination of copulas is its own unique copula. Therefore, by weighting the random draws obtained from a multivariate Archimedean copula with those from an Archimedean Clayton copula, a hybrid copula with a given correlation structure and enhanced left-tail dependence is <strong>synthesized</strong>. Thus, if <span class="math inline">\(C_1(U_N)\)</span> and <span class="math inline">\(C_2(U_N)\)</span> are multivariate copula’s of dimension D and <span class="math inline">\(w\)</span> is a weighting variable between 0 and 1, then</p>
-<center>
-<span class="math inline">\(C(U_N)=w.C_1(U_N)+(1-w)C_2(U_N)\)</span>
-</center>
-<p>is a unique copula. Therefore, a hybrid copula <span class="math inline">\(C(U_N)\)</span> can be created by linearly weighting an Elliptical and Archimedean copula of the same dimension.</p>
+<p>The MCmarket package uses copula’s to define the markets multivariate distributions, these distributions are then used to produce random uniformly distributed draws. These serve as the starting point of the Monte Carlo process and are the only source of randomness <span class="citation">(Ruppert and Matteson <a href="#ref-ruppert" role="doc-biblioref">2011</a>)</span>. Note that the distribution these random draws are referred to as marginal distributions. In this context it is usefull to think of a copula as a multivariate cumulative distribution function (CDF) with Uniform (0,1) marginal distributions <span class="citation">(Ruppert and Matteson <a href="#ref-ruppert" role="doc-biblioref">2011</a>[p. 183])</span>. Therefore, since all variable posses the same marginal cumulative distribution function (CDF), copulas only contain information on the dependencies within the multivariate distribution <span class="citation">(Ruppert and Matteson <a href="#ref-ruppert" role="doc-biblioref">2011</a>)</span>.</p>
+<p>MCmarket incorporates two broad families of copula’s, namely the Elliptical and Archimedean. The Elliptical Gaussian and t-copula’s define the respective multivariate normal and t distributions, these are used for their convenient property of relying on a <span class="math inline">\(D \times D\)</span> correlation matrix to define their distribution.</p>
+<p>Archimedean copula’s, on the other hand, define multivariate distributions which exhibit either left or right tail dependence. This refers to an increase in dependence within either the left or right tail of the multivariate distribution, where dependence tends to increases as observations occur further in the tails. Due to issues concerning the speed of computation and functionality within high dimensions only the the Clayton copula is used. The Clayton copula was found to be particularly useful since it naturally possesses left-tail dependence and can be defined in high dimension spaces with limited cost to computation speed.</p>
 <p>Another important property of copulas is that their component variables are invariant to monotonic (strictly increasing) transformations <span class="citation">(Ruppert and Matteson <a href="#ref-ruppert" role="doc-biblioref">2011</a>)</span>. This property allows for the transformation of the marginals from Uniform(0,1) into any other closed form distribution via the inversion of the semi-parametric CDF <span class="citation">(Ruenzi and Weigert <a href="#ref-ruenzi2011" role="doc-biblioref">2011</a>)</span>. MCmarket provides users with the functionality to transform the Uniform(0,1) marginals into normal, student-t or skewed generalized t (SGT) distributions. It is important to note that this transformation step is deterministic as it involves no randomness given the realisations from the random uniformly distributed draws.</p>
 <p>MCmarket also provides the functionality to induce mean and/or variance persistence into the simulated data. This is accomplished via the use of the time-series ARMA + APARCH models, in which the marginals, which have by now been transformed to either normal, student-t or SGT distributions, are plugged into an ARMA(p,q) + GARCH(q,p) equation as the innovations of the process. This allows the user to precisely select exact parameters describing the time-series properties of the simulated data and thereby introduce varying degrees of mean and variance persistence. This step, if done correctly, is able to introduce many of the characteristics observed in real world financial data. For example financial returns have been noted to posses “outlier-prone” probability distributions, so by inducing variance persistence it becomes far more likely for the simulated returns to produce outliers, when the variance is large <span class="citation">(Ruppert and Matteson <a href="#ref-ruppert" role="doc-biblioref">2011</a>)</span>.</p>
 <p>Another empirical phenomenon observed in many financial time series is that negative returns often tend to positively influence volatility by more than positive returns of equal magnitude, this is often referred to as the leverage effect <span class="citation">(Ruppert and Matteson <a href="#ref-ruppert" role="doc-biblioref">2011</a>)</span>. The asymmetric power auto-regressive conditional heteroskedasticity (APARCH) model is one such volatility model capable of accommodating this effect via its gamma parameter. Due to this property, and its generalizable nature (APARCH nests at least 7 other models) it is the volatility model built into MCmarkets framework<span class="citation">(Laurent <a href="#ref-laurent" role="doc-biblioref">2004</a>)</span>.</p>
@@ -183,7 +179,7 @@ Stellenbosch University
 <p>The Monte Carlo process involves the following 4 steps:</p>
 <p>This example generates k periods of returns, for D Assets across N counterfactual markets.</p>
 <ol style="list-style-type: decimal">
-<li>Draw a series of k random, uniformly distributed numbers (corresponding to k trading periods), across a set of D variables (or D assets), from a multivariate distribution with a given correlation matrix.
+<li>Draw a series of k random, uniformly distributed numbers (corresponding to k trading periods), across a set of D variables (or D assets), from a multivariate copula. The Gaussian an t copulas can be specified with a correlation matrix while the Clayton copula can defined with
 <ul>
 <li>This is accomplished using Euclidean copulas (Gaussian or t-copula) to induce a correlation structure, as well as the Archmediean Clayton copula to introduce left-tail dependence. This can easily be done using R’s copula package <span class="citation">(Hofert, Kojadinovic, Maechler, and Yan <a href="#ref-copula" role="doc-biblioref">2020</a>)</span>.</li>
 <li>Tawn’s (1988) theorem states that a linear weighted combination of copulas is its own unique copula. Therefore, by weighting the random draws obtained from a multivariate Archmedian copula with those from a Clayton copula, a hybrid copula with a given correlation structure and enhanced left-tail dependence is created.</li>
@@ -197,7 +193,7 @@ Stellenbosch University
 <ul>
 <li>If the parameters are set accordingly the resulting series should possess the volatility clustering observed in empirical asset returns.</li>
 </ul></li>
-<li>The final step is to repeat the first 3 steps N times to generate an ensemble of asset markets, each with the same risk characteristics but different realisation.</li>
+<li>The final step is to repeat the first 3 steps N times to generate an ensemble of asset markets, each with the same risk characteristics but different realization.</li>
 </ol>
 </div>
 <div id="functions-and-examples" class="section level1">
@@ -208,96 +204,117 @@ Stellenbosch University
 <div id="parameters-gen_cor" class="section level3">
 <h3><span class="header-section-number">4.1.1</span> Parameters: gen_cor</h3>
 <ul>
-<li>D: The number of variables, generates an D by D correlation matrix. Clusters a character string specifying the type of cluster structure. Available options are “none”, for a correlation matrix with no clusters, on-overlapping" for a correlation matrix with one layer of clusters, and “overlapping” for a correlation matrix with up to 4 layers and a set number of clusters per layer.</li>
-<li>Num_Clusters: if Clusters = “non-overlapping” or Clusters = “none” then Num_Clusters is an integer value specifying the number of Else if Clusters = “overlapping” then Num_Clusters must be a vector, arranged in descending order, of length equal to Num_Layers specifying the number of clusters per layer.</li>
-<li>Num_Layers: an positive integer value between 1 and 4, specifying the number of cluster layers. Only needed if using “overlapping” clusters.</li>
+<li>D: The number of variables, gen_cor generates an D by D correlation matrix.</li>
+<li>clusters a character string specifying the type of cluster structure. Available options are “none”, for a correlation matrix with significant correlation, but no clusters. “non-overlapping” for a correlation matrix with one layer of clusters. “overlapping” for a correlation matrix with up to 4 layers and a set number of clusters per layer.</li>
+<li>num_clusters:
+<ul>
+<li>If clusters = “none” then num_clusters is not used.</li>
+<li>If clusters = “non-overlapping” then num_clusters is an integer indicating the number of clusters.</li>
+<li>If clusters = “overlapping” then num_clusters is be a vector of length less than or equal to 4. The length of num_clusters specifies the number of cluster layers and the integers within the vector specify the number of clusters
+per layer. It is preferable to arranged the vector in descending order, but failing to do so can result in unique output but may not contain the intended number of layers. Repeating the same number for cluster in each layer, for example try num_clusters = c(10, 10, 5, 5), will create 2 layers of clusters, but with different correlation coefficients than num_clusters = c(10, 5).</li>
+</ul></li>
 </ul>
 <p>This function returns a D by D correlation matrix.</p>
 </div>
 <div id="examples-gen_cor" class="section level3">
 <h3><span class="header-section-number">4.1.2</span> Examples: gen_cor</h3>
-<pre class="r r-chunk-code"><code>R&gt; # Loading required packages.
+<pre class="r r-chunk-code"><code>R&gt; ### Loading required packages.
 R&gt; library(&quot;MCmarket&quot;)
-R&gt; library(&quot;ggcorrplot&quot;)</code></pre>
-<pre><code>Loading required package: ggplot2</code></pre>
-<pre class="r r-chunk-code"><code>R&gt; library(&quot;dplyr&quot;)</code></pre>
-<pre><code>
-Attaching package: &#39;dplyr&#39;</code></pre>
-<pre><code>The following objects are masked from &#39;package:stats&#39;:
-
-    filter, lag</code></pre>
-<pre><code>The following objects are masked from &#39;package:base&#39;:
-
-    intersect, setdiff, setequal, union</code></pre>
-<pre class="r r-chunk-code"><code>R&gt; # 50 by 50 Correlation matrix with no clusters.
-R&gt; cor1 &lt;- gen_corr(D = 50, Clusters = &quot;none&quot;)
+R&gt; library(&quot;ggcorrplot&quot;)
+R&gt; library(&quot;dplyr&quot;)
+R&gt; 
+R&gt; ### 50 by 50 Correlation matrix with no clusters.
+R&gt; cor1 &lt;- gen_corr(D = 50, clusters = &quot;none&quot;)
 R&gt; ggcorrplot(cor1, title = &quot;No Clusters&quot;)</code></pre>
-<p><img src="manual_files/figure-html/gen_cor-1.png" width="470.4" style="display: block; margin: auto;" /></p>
-<pre class="r r-chunk-code"><code>R&gt; # 50 by 50 correlation matrix with 5 non-overlapping clusters.
-R&gt; cor2 &lt;- gen_corr(D = 50, Clusters = &quot;non-overlapping&quot;, Num_Clusters = 5)
+<p><img src="manual_files/figure-html/gen_cor-1.png" width="50%" height="50%" style="display: block; margin: auto;" /></p>
+<pre class="r r-chunk-code"><code>R&gt; ### 50 by 50 correlation matrix with 5 non-overlapping clusters.
+R&gt; cor2 &lt;- gen_corr(D = 50, clusters = &quot;non-overlapping&quot;, num_clusters = 5)
 R&gt; ggcorrplot(cor2, title = &quot;Non-Overlapping Clusters&quot;)</code></pre>
-<p><img src="manual_files/figure-html/gen_cor-2.png" width="470.4" style="display: block; margin: auto;" /></p>
-<pre class="r r-chunk-code"><code>R&gt; # 50 by 50 correlation matrix with 2, 5 and 10 overlapping clusters. 
-R&gt; cor3 &lt;- gen_corr(D = 50, Clusters = &quot;overlapping&quot;, Num_Clusters = c(10, 5, 2), Num_Layers = 3)
+<p><img src="manual_files/figure-html/gen_cor-2.png" width="50%" height="50%" style="display: block; margin: auto;" /></p>
+<pre class="r r-chunk-code"><code>R&gt; ### 50 by 50 correlation matrix with 2, 5 and 10 overlapping clusters. 
+R&gt; cor3 &lt;- gen_corr(D = 50, clusters = &quot;overlapping&quot;, num_clusters = c(10, 5, 2))
 R&gt; ggcorrplot(cor3, title = &quot;Three Layers of Overlapping Clusters&quot;)</code></pre>
-<p><img src="manual_files/figure-html/gen_cor-3.png" width="470.4" style="display: block; margin: auto;" /></p>
+<p><img src="manual_files/figure-html/gen_cor-3.png" width="50%" height="50%" style="display: block; margin: auto;" /></p>
 </div>
 </div>
 <div id="sim_garch" class="section level2">
 <h2><span class="header-section-number">4.2</span> sim_garch</h2>
-<p>This function takes a vector of random numbers and induces mean and variance persistence by plugging them into an ARIMA + GARCH model as the innovations.
-It is suggested that the randomly distributed numbers be mean zero and standard deviation one, as the mean and variance attributes are better set in the model argument, via the respective mu and omega arguments.</p>
+<p>This function takes a vector of random numbers and induces mean and variance persistence by plugging them into an ARIMA + GARCH model as the innovations. The input data should be mean zero and standard deviation one. These moments are are better set within sim_garch’s mu and omega arguments.</p>
 <div id="parameters-sim_garch" class="section level3">
 <h3><span class="header-section-number">4.2.1</span> Parameters: sim_garch</h3>
 <ul>
-<li>innovations: a vector containing the random numbers/ the innovations of the ARIMA + GARCH process.</li>
-<li>model: a list containing various ARMA + APARCH parameters, allowing once to specify the time series properties of the simulated returns. Note that parameter combinations resulting in non-stationary of the mean or variance will produce NAN’s. The default values are set as list(omega = 5e-04, alpha = 0, gamma = NULL, beta = 0, mu = 0, ar = NULL, ma = NULL, delta = 2).<br />
-See the “model” parameter under fGarch::garchSpec() function for more details regarding the parameters.</li>
-<li>simple: a logical parameter indicating if the output should be a simple vector containing the resulting ARMA + APARCH series, or if FALSE, a three column dataframe containing z - the innovations, h - the conditional variance and y - the ARMA + APARCH series.</li>
+<li><p>innovations a vector containing the random numbers/ the innovations of the
+ARIMA + GARCH process.</p></li>
+<li><p>omega a positive value defining the coefficient of the variance equation, default is 5e-04.</p></li>
+<li><p>gamma a value defining the APARCH leverage parameter in the variance equation. The default
+of 0, implies no leverage effect and therefore corresponds with the standard GARCH model.</p></li>
+<li><p>alpha a value defining the value of the autoregressive variance coefficient, default is 0.</p></li>
+<li><p>beta a value defining the variance coefficient, default is 0.</p></li>
+<li><p>mu a value defining the mean, default is 0.</p></li>
+<li><p>ar a value defining the autoregressive ARMA coefficient, default is 0.</p></li>
+<li><p>ma a value defining the moving average ARMA coefficient, default is 0.</p></li>
+<li><p>delta a strictly positive value the delta parameter of the APARCH model. The default is 2,
+which corresponds with the standard GARCH model.</p></li>
+<li><p>simple a logical parameter indicating if the output should be a simple vector containing just the
+resulting ARIMA + GARCH series, or if FALSE a three column dataframe containing z - the innovations, h - the
+conditional variance and y - ARMA + APARCH series.</p></li>
+<li><p>Note</p>
+<ol style="list-style-type: decimal">
+<li>It is suggested that the randomly distributed numbers be mean zero and standard
+deviation one, as these moments can be mu and omega arguments.</li>
+<li>Note the length of the resulting series will one observation less than that that of the innovations
+as ARMA(1,1) + APARCH(1,1) model effectively consumes this lag when producing its first value.</li>
+<li>For more information on the ARMA + APARCH parameters see: Ruppert, D. and Matteson, D.S., 2011. Statistics and data analysis for financial engineering (Vol. 13). New York: Springer.</li>
+</ol></li>
+<li><p>Return if simple = TRUE a vector of the resulting ARMA + APARCH series, else if simple = FALSE a
+three column dataframe containing z - the innovations, h - the conditional variance and y - ARMA +
+APARCH series.</p></li>
 </ul>
 </div>
 <div id="examples-sim_garch" class="section level3">
 <h3><span class="header-section-number">4.2.2</span> Examples: sim_garch</h3>
 <pre class="r r-chunk-code"><code>R&gt; library(&#39;MCmarket&#39;)
-R&gt; # Creating series of 501 innovations
-R&gt; set.seed(12345)
+R&gt; library(&#39;tidyverse&#39;)
+R&gt; library(&#39;patchwork&#39;)
+R&gt; ### Creating series of 501 innovations
+R&gt; set.seed(586423)
 R&gt; inno &lt;-  rnorm(501)
 R&gt; 
-R&gt; # This produces a ARIMA + GARCH series of length 500.
-R&gt; GARCH &lt;- sim_garch(inno,
-R+                    model = list(mu = 0.000002,
-R+                                 omega = 0.00005,
-R+                                 alpha = 0.098839,
-R+                                 beta = 0.899506,
-R+                                 ar = 0.063666,
-R+                                 ma = NULL,
-R+                                 gamma = 0.12194,
-R+                                 delta = 1.85),
-R+                    simple = FALSE)
-R&gt; 
-R&gt; # Or we can simulate a market using gen_cor, sim_inno and purrr:map_dfc  
-R&gt; library(&#39;purrr&#39;)
-R&gt; 
-R&gt; # Step 1: Generate Correlation matrix
-R&gt; cor &lt;- gen_corr(D = 20, Clusters = &quot;overlapping&quot;, Num_Clusters = c(10, 5, 4), Num_Layers = 3)
-R&gt; 
-R&gt; # Step 2: Simulate Innovations
-R&gt; set.seed(12345)
-R&gt; inno &lt;- sim_inno(cor,
-R+                  k = 501,
-R+                  mv_dist = &quot;norm&quot;,
-R+                  marginal_dist = &quot;t&quot;,
-R+                  marginal_dist_model = list(mu = 0,
-R+                                             df = 3))
-R&gt; 
-R&gt; # Step 3: Introduce APARCH properties
-R&gt; market &lt;- 
-R+   inno %&gt;% map_dfc(~sim_garch(innovations = .x,
-R+                               list(mu = 0.001,
-R+                                    omega = 0.0005,
-R+                                    alpha = 0.95,
-R+                                    ar = 0.002)))
-R&gt; head(market)</code></pre>
+R&gt; ### This produces a ARIMA + GARCH series of length 500.
+R&gt; GARCH &lt;- sim_garch(
+R+   inno,
+R+   mu = 0.000002,
+R+   omega = 0.00005,
+R+   alpha = 0.098839,
+R+   beta = 0.899506,
+R+   ar = 0.063666,
+R+   ma = NULL,
+R+   gamma = 0.12194,
+R+   delta = 1.85,
+R+   simple = FALSE
+R+ )
+R&gt; head(GARCH, 10)</code></pre>
+<pre><code># A tibble: 10 x 3
+        z      h       y
+    &lt;dbl&gt;  &lt;dbl&gt;   &lt;dbl&gt;
+ 1 NA     NA     NA     
+ 2  0.226  0.143  0.0323
+ 3 -1.15   0.135 -0.154 
+ 4 -0.767  0.140 -0.117 
+ 5  0.231  0.138  0.0244
+ 6  0.905  0.131  0.120 
+ 7  0.609  0.128  0.0859
+ 8 -1.18   0.124 -0.140 
+ 9 -1.70   0.128 -0.227 
+10 -1.25   0.143 -0.193 </code></pre>
+<pre class="r r-chunk-code"><code>R&gt; ### Plotting z - the innovations, h - the conditional variance and y - ARMA + APARCH series.
+R&gt; GARCH %&gt;% na.omit() %&gt;%
+R+   gather() %&gt;% group_by(key) %&gt;% 
+R+   mutate(period = 1:n()) %&gt;% 
+R+   ggplot(aes(x=period, y = value, color=key)) +
+R+   geom_line() + 
+R+   facet_wrap(~key, nrow = 3, scales = &quot;free_y&quot;) + theme_bw()</code></pre>
+<p><img src="manual_files/figure-html/sim_garch-1.png" width="80%" height="70%" style="display: block; margin: auto;" /></p>
 </div>
 </div>
 <div id="sim_market" class="section level2">
