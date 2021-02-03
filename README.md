@@ -5,10 +5,9 @@ README
 
 This is the README for Nathan Potgieter’s financial econometrics
 project. This work sets out a framework for the Monte Carlo simulation
-of asset markets. This frame work is built into the MCmarket package
+of asset markets. This framework is built into the MCmarket package
 which will be available in on githib under the
-“Nathan-Potgieter/MCmarket” repository. Or maybe not if the name must
-be changed.
+“Nathan-Potgieter/MCmarket” repository.
 
 ## Aim
 
@@ -32,7 +31,7 @@ markets.
 1.  Draw a series of k random uniformly distributed numbers
     (corresponding to k trading periods), across a set of D variables
     (or D assets), from a multivariate distribution with a given
-    correlation matrix.
+    correlation structure.
       - This is accomplished using Euclidean (Gaussian or t-copula) or
         Archmediean Clayton copulas. In R this can easily be done using
         the *ellipCopula*, *archmCopula* and *rcopula* functions from
@@ -42,8 +41,7 @@ markets.
     functionality to convert them into normal, student-t or
     skewed-generalized t distributions.
       - This is done the same way one would convert p-values into test
-        statistics. In are the dnorm(), dt() and sgt::dsgt() functions
-        are used.
+        statistics with the dnorm(), dt() and sgt::dsgt() functions.
       - Technically this is accomplished via the inversion of the
         cumulative distribution function (CDF).
 3.  Induce mean and variance persistence to the series, by plugging the
@@ -238,13 +236,13 @@ constructed.
 S\&P500 data since 1/01/2000 is used to sample covariance matrices that
 can be used as inputs in the Monte Carlo procedure. These matrices will
 be made available as part of the MCmarket package. They can also be used
-generative correlation models, like CorrGAN (<https://marti.ai>). At a
-later stage MCmarket may incorporate some generative correlation matrix
-models, preferably those like the conditional CorrGAN or conditional
-CorrVAE. this will allow users to randomly simulate different types of
-realistic correlation matrices.
+in correlation matrix generative models, like CorrGAN
+(<https://marti.ai>). At a later stage MCmarket may incorporate some
+CorrGAN model, preferably those like the conditional CorrGAN or
+conditional CorrVAE. this will allow users to randomly simulate
+different types of realistic correlation matrices.
 
-Note that this code is not run when building this README, it would
+Note that the code below is not run when building this README, it would
 simply take too long to knit this document.
 
 #### Getting SNP 500 data since 2000
@@ -518,12 +516,12 @@ as part of the Monte Carlo framework.
 
 #### Elliptal copulas
 
-The Gaussian and t Elliptal copulas allow us to specify their
-correlation matrix before randomly selecting observations from their
-multivariate distribution. Doing so allows one to produce random draws
-of uniformly distributed variables that adhere to the user specified
-correlation structure. The chunk of code below demonstrates this
-functionality.
+The Gaussian and t copulas from the Elliptal family allow us to specify
+their correlation matrix before randomly selecting observations from
+their multivariate distribution. Doing so allows one to produce random
+draws of uniformly distributed variables that adhere to the user
+specified correlation structure. The chunk of code below demonstrates
+this functionality.
 
 ``` r
 #loading copula package; already loaded
@@ -594,16 +592,16 @@ p1
 
 ### Archimedean Copulas
 
-This work seeked out a method to produce simulated markets with high
-left tail dependence. This would in theory enable the simulation of
+This work searched for a method to produce simulated markets with high
+left-tail dependence. This would in theory enable the simulation of
 markets in which the correlation between assets increases when when
 overall asset returns are low. (i.e. during crisis periods)
 
 Unfortunately, Elliptal copulas cannot be calibrated to exhibit dynamic
 correlations (i.e left-tail dependence). Therefore, in this section we
-examine some properties of Archimedean copulas which do exhibit
-left-tail dependence. Unfortunately, Archimedean copulas don’t allow us
-to stipulate their correlation matrix.
+examine some properties of Archimedean copulas which do exhibit tail
+dependence. Unfortunately, Archimedean copulas don’t allow us to
+stipulate their correlation matrix.
 
 Archimedean copulas such as the Clayton, Frank, Gumbel and Joe exhibit
 higher levels of dependence at the tails of the multivariate
@@ -618,7 +616,7 @@ rotation step can be quite time consuming and often fails in higher
 dimensions. Therefore, the choice to focus on only using the Clayton
 copula was largely due to practical concerns raised when tinkering with
 alternative copulas. Therefore, in future work it would be beneficial to
-explore alternative high dimensional, left-tail copulas.
+explore alternative high dimensional left-tail copulas.
 
 ``` r
 # first look at at dim=2 to get understanding of what parameter tning does
@@ -756,13 +754,14 @@ the dimension 2.
 
 This work attempted to generalize this finding into higher dimensional
 copulas. First lets look at some 2D examples. We will investigate if
-this works in higher dimensions in Section 
+this works in higher dimensions in Section .
 
 ### Generatimg Some 2D Hybrid Copulas.
 
 This chunk of code creates and plots some pseudo hybrid copulas by
 linearly weighting the random numbers generated from a student-t and
-Clayton copula.
+Clayton copula. Note how when increasing the Clayton weight,
+observations concentrate at the bottom left of the density plots.
 
 ![Plot 1.](plots/plot_1.png) ![Plot 2.](plots/plot_2.png) ![Plot
 3.](plots/plot_3.png) ![Plot 4.](plots/plot_4.png)
@@ -771,9 +770,9 @@ Remember that each variable is still currently uniformly distributed.
 <img src="README_files/figure-gfm/unnamed-chunk-1-1.png" width="80%" height="80%" />
 
 This section has successfully demonstrated how to use copulas to
-simulate random uniformly distributed data with any that adhered to the
-given correlation matrix. It also found a potential way to simulate data
-with hybrid copulas.
+simulate random uniformly distributed data, with some that adhered to
+the given correlation matrix. It also found a potential way to simulate
+data with hybrid copulas.
 
 # Step 2: Converting the uniformly distributed variables to something that better resembles the distribution of asset returns.
 
@@ -801,7 +800,7 @@ functions influence the SGT distribution. Note how the SGT’s parameters
 allow one to effect the skewness and kurtosis of the distribution.
 <img src="README_files/figure-gfm/unnamed-chunk-2-1.png" width="80%" height="80%" /><img src="README_files/figure-gfm/unnamed-chunk-2-2.png" width="80%" height="80%" /><img src="README_files/figure-gfm/unnamed-chunk-2-3.png" width="80%" height="80%" />
 
-### Here I demonstrate how a uniformly distributed observations can be transformed into other distributions.
+### Here I demonstrate how uniformly distributed observations can be transformed into other distributions.
 
 ``` r
 # Generating a uniform (0,1) series
@@ -856,79 +855,12 @@ sgt  %>% ggplot(aes(x = value)) +
 
 <img src="README_files/figure-gfm/unnamed-chunk-3-4.png" width="80%" height="80%" />
 
-### Calibrating the SGT with Architypal Low, Medium and High Risk Assets.
-
-At this stage, the infomation gathered in this section has not yet been
-incorporated into MCmarket. At a later stage the estimated parameters in
-this section will be used in the MCmarkets presets. These will allow non
-technical users to simulate predefined market types with no knowledge of
-the underlying statistical concepts. It is included for not to
-demonstrate the extent of my research thus far.
-
-##### This section will most likely be scraped, due to the sensitivity of the parameters.
-
-We now look at data on each share in the S\&P500 over the last 90
-months. The shares with the top 5% highest annualized SD’s are used to
-model an archetypal high risk asset, shares with the 5% lowest
-annualized SD’s are used to model an archetypal low risk asset, while
-shares with SD between the 45th and 55th percentile are used to model
-the medium risk asset.
-
-``` r
-load("data/SNP_returns.Rda")
-
-high_vol <-
-  SNP_returns %>% 
-  dplyr::filter(date==last(date)) %>% 
-  arrange(desc(sd)) %>% 
-  group_by(date) %>% 
-  slice_max(., order_by = sd, prop = 0.1 ) %>%  #select top 10% SD's
-  pull(symbol)
-
-low_vol <-
-  SNP_returns %>% 
-  dplyr::filter(date==last(date)) %>% 
-  arrange(sd) %>% 
-  slice_min(., order_by = sd, prop = 0.1) %>% #select bot 10% SD's
-  pull(symbol)
-
-medium_vol <-
-  SNP_returns %>% 
-  dplyr::filter(date==last(date)) %>% 
-  arrange(sd) %>% 
-  group_by(date) %>% 
-  dplyr::filter(sd>=quantile(sd, probs = 0.45, na.rm = T) &
-                  sd<=quantile(sd, probs = 0.55, na.rm = T)) %>% 
-  pull(symbol)
-```
-
-##### Plotting low, medium and high risk returns.
-
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-
-<img src="README_files/figure-gfm/Plotting returns-1.png" width="80%" height="80%" />
-
-#### Estimating SGT
-
-This section used maximum likelihood estimation to estimate the
-parameters of the SGT in each market type.
-
-  - See “code/filter\_resid.R” to see how filtered residuals (garch.Rda)
-    was obtained.
-  - See “code/estimate\_sgt.R” to see how the parameters of the sgt were
-    estimated.
-
-See the kernal density estimates of each return type with the overlayed
-SGT calibrated by the maximum likelihood estimation (above). Notive how
-poorly the hight risk SGT matches the KDE. Will need to tinker and fix
-this issue at a later stage.
-
-# Step 3: Introducing Volitility Persistence
+# Step 3: Introducing Volatility Persistence
 
 The simulated innovations do not yet demonstrate the mean and/or
 volatility persistence observed in real asset return series. Therefore,
 they can be thought of as the innovations of some time-series
-model/process. In this step I introduce autocorrelation and volatility
+model/process. In this step I introduce mean and variance persistence
 using an ARMA(p,q) + APGARCH(q,p) model.
 
 #### Inreresting artical on garch modeling and forecastig
@@ -1080,9 +1012,14 @@ sim_garch <- function(innovations,
 
 ## Demonstrating sim\_garch
 
-Note that: - volatility clusters and significant autocorrelation appear
-in the series after it is processed through the sim\_garch function. -
-sim\_garch is a deterministic function.
+Note that:
+
+1)  volatility clusters and significant autocorrelation appear in the
+    series after it is processed through the sim\_garch function.
+
+2)  sim\_garch is a deterministic function.
+
+<!-- end list -->
 
 ``` r
 set.seed(32156454)
@@ -1138,16 +1075,16 @@ sim\_market are provided.
 p_load(MCmarket)
 
 # -------------------
-# Step 1
+# Step 1:  Draw a series of random uniformly distributed numbers across a set of variables with a specified dependence structure.
 # ------------------
 D <- 10 # Dimention
 k <- 1000 # number of periods
 
-# Create correlation matrix
+# Create correlation matrix.
 corr <- gen_corr(D, cluster = "non-overlapping", num_clusters = 2)
 
+# Specify and copula and simulate uniformly distributed numbers.
 ncop <- ellipCopula(family = "normal", dispstr = "un", param = P2p(corr), dim = D)
-
 set.seed(1234)
 data <- rCopula(k, ncop)
 
@@ -1173,7 +1110,7 @@ data %>% ggplot() +
 
 ``` r
 # ----------------
-# Step 2
+# Step 2: Converting the uniformly distributed variables to something that better resembles the distribution of asset returns.
 # ---------------
 # First set the mean and sd for each asset
 args <- tibble(Asset = glue::glue("Asset_{1:D}") %>% as.character()) %>%
@@ -1196,16 +1133,16 @@ data %>% group_by(Asset) %>% mutate(mean = mean(Return),
     ## # Groups:   Asset [10]
     ##    date       Asset    Return     mean    sd
     ##    <date>     <chr>     <dbl>    <dbl> <dbl>
-    ##  1 2021-01-27 Asset_1  -1.19   0.0425  1.02 
-    ##  2 2021-01-27 Asset_2  -0.251  0.00429 1.02 
-    ##  3 2021-01-27 Asset_3   0.259  0.0168  0.999
-    ##  4 2021-01-27 Asset_4  -1.91   0.00639 1.02 
-    ##  5 2021-01-27 Asset_5  -0.156  0.0267  1.00 
-    ##  6 2021-01-27 Asset_6  -0.181 -0.00721 0.972
-    ##  7 2021-01-27 Asset_7  -0.865  0.0258  0.963
-    ##  8 2021-01-27 Asset_8  -0.847 -0.0127  0.963
-    ##  9 2021-01-27 Asset_9  -0.859  0.0172  0.928
-    ## 10 2021-01-27 Asset_10 -1.06  -0.00700 0.972
+    ##  1 2021-02-02 Asset_1  -1.19   0.0425  1.02 
+    ##  2 2021-02-02 Asset_2  -0.251  0.00429 1.02 
+    ##  3 2021-02-02 Asset_3   0.259  0.0168  0.999
+    ##  4 2021-02-02 Asset_4  -1.91   0.00639 1.02 
+    ##  5 2021-02-02 Asset_5  -0.156  0.0267  1.00 
+    ##  6 2021-02-02 Asset_6  -0.181 -0.00721 0.972
+    ##  7 2021-02-02 Asset_7  -0.865  0.0258  0.963
+    ##  8 2021-02-02 Asset_8  -0.847 -0.0127  0.963
+    ##  9 2021-02-02 Asset_9  -0.859  0.0172  0.928
+    ## 10 2021-02-02 Asset_10 -1.06  -0.00700 0.972
     ## # ... with 9,990 more rows
 
 ``` r
@@ -1229,7 +1166,7 @@ data %>% ggplot() +
 
 ``` r
 # ---------------
-# Step 3
+# Step 3: Introducing Volatility Persistence 
 # ---------------
 # Tibble with with garh parameters and defaults
 ts_args <- tibble(Asset = glue::glue("Asset_{1:D}") %>% as.character()) %>%
@@ -1302,19 +1239,26 @@ data %>% group_by(Asset) %>% mutate(mean = mean(Return),
     ## # Groups:   Asset [10]
     ##    date       Asset     Return     mean    sd
     ##    <date>     <chr>      <dbl>    <dbl> <dbl>
-    ##  1 2021-01-27 Asset_1   0.0251 -0.0223  0.585
-    ##  2 2021-01-27 Asset_2   0.251   0.0142  0.587
-    ##  3 2021-01-27 Asset_3   0.422  -0.00467 0.603
-    ##  4 2021-01-27 Asset_4   0.279  -0.00350 0.609
-    ##  5 2021-01-27 Asset_5   0.528  -0.00340 0.600
-    ##  6 2021-01-27 Asset_6  -0.560   0.00799 0.602
-    ##  7 2021-01-27 Asset_7  -0.860   0.0220  0.603
-    ##  8 2021-01-27 Asset_8  -0.733  -0.00430 0.586
-    ##  9 2021-01-27 Asset_9  -0.728   0.00940 0.587
-    ## 10 2021-01-27 Asset_10 -0.829  -0.00975 0.606
+    ##  1 2021-02-02 Asset_1   0.0251 -0.0223  0.585
+    ##  2 2021-02-02 Asset_2   0.251   0.0142  0.587
+    ##  3 2021-02-02 Asset_3   0.422  -0.00467 0.603
+    ##  4 2021-02-02 Asset_4   0.279  -0.00350 0.609
+    ##  5 2021-02-02 Asset_5   0.528  -0.00340 0.600
+    ##  6 2021-02-02 Asset_6  -0.560   0.00799 0.602
+    ##  7 2021-02-02 Asset_7  -0.860   0.0220  0.603
+    ##  8 2021-02-02 Asset_8  -0.733  -0.00430 0.586
+    ##  9 2021-02-02 Asset_9  -0.728   0.00940 0.587
+    ## 10 2021-02-02 Asset_10 -0.829  -0.00975 0.606
     ## # ... with 9,990 more rows
 
 ### sim\_market
+
+This is the main function in the MC market package, It performs the
+first three steps of the MCcarlo process. See the Roxygen documentation
+below for further detail.
+
+For the purpose of this readme this version of sim\_inno is slightly
+different to that in the final version of MCmarket.
 
 ``` r
 #' @title sim_market
@@ -1583,7 +1527,7 @@ sim_market <- function(corr,
 
 ### Testing sim\_inno 
 
-This code simply tests and demonstrates the functionality of sim\_inno.
+This code tests sim\_inno and demonstrates its functionality.
 
 ``` r
 Corr <- gen_corr(D = 50, clusters = "overlapping", num_clusters = c(10,5,2))
@@ -1615,16 +1559,19 @@ data_sgt <- sim_market(corr = Corr,
                  marginal_dist = "sgt",
                  marginal_dist_model = sgt_pars,
                  k = 500)
+```
 
-# Seems to work very well.
-# But does it work with left_cop_weight =! 0?
+The above seems to work very well, but does it work with
+left\_cop\_weight =\! 0? i.e. does the MC framework function as intended
+when using a hybrid copula.
 
+``` r
 set.seed(123)
 data_nlc <- sim_market(corr = Corr, 
                        mv_dist = "t",
                        mv_df = 4,
                        left_cop_param = 5,
-                       left_cop_weight = 0,
+                       left_cop_weight = 0,  # Only t copula
                        marginal_dist = "norm",
                        marginal_dist_model = list(mu = 0, sd = 1),
                        k = 500)
@@ -1633,7 +1580,7 @@ data_lc <- sim_market(corr = Corr,
                       mv_dist = "t",
                       mv_df = 4,
                       left_cop_param = 5,
-                      left_cop_weight = 0.5,
+                      left_cop_weight = 0.5,  # t - Clayton copula hybrid
                       marginal_dist = "norm",
                       marginal_dist_model = list(mu = 0, sd = 1),
                       k = 500)
@@ -1642,12 +1589,12 @@ data_lco <- sim_market(corr = Corr,
                       mv_dist = "t",
                       mv_df = 4,
                       left_cop_param = 5,
-                      left_cop_weight = 1,
+                      left_cop_weight = 1,  # Only Clayton copula
                       marginal_dist = "norm",
                       marginal_dist_model = list(mu = 0, sd = 1),
                       k = 500)
 
-# checking sd's
+# checking sd's: They are Not being set correctly in the hybrid copula
 data_nlc %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd = 1
 ```
 
@@ -1655,16 +1602,16 @@ data_nlc %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd = 1
     ## # Groups:   Asset [50]
     ##    date       Asset    Return    sd
     ##    <date>     <glue>    <dbl> <dbl>
-    ##  1 2021-01-28 Asset_1   0.405 0.980
-    ##  2 2021-01-28 Asset_2   0.305 1.01 
-    ##  3 2021-01-28 Asset_3   0.299 1.03 
-    ##  4 2021-01-28 Asset_4   0.785 1.03 
-    ##  5 2021-01-28 Asset_5   0.233 1.00 
-    ##  6 2021-01-28 Asset_6   0.803 1.01 
-    ##  7 2021-01-28 Asset_7  -0.285 0.991
-    ##  8 2021-01-28 Asset_8   0.489 0.999
-    ##  9 2021-01-28 Asset_9   0.326 0.983
-    ## 10 2021-01-28 Asset_10  0.359 0.990
+    ##  1 2021-02-03 Asset_1   0.405 0.980
+    ##  2 2021-02-03 Asset_2   0.305 1.01 
+    ##  3 2021-02-03 Asset_3   0.299 1.03 
+    ##  4 2021-02-03 Asset_4   0.785 1.03 
+    ##  5 2021-02-03 Asset_5   0.233 1.00 
+    ##  6 2021-02-03 Asset_6   0.803 1.01 
+    ##  7 2021-02-03 Asset_7  -0.285 0.991
+    ##  8 2021-02-03 Asset_8   0.489 0.999
+    ##  9 2021-02-03 Asset_9   0.326 0.983
+    ## 10 2021-02-03 Asset_10  0.359 0.990
     ## # ... with 24,990 more rows
 
 ``` r
@@ -1675,16 +1622,16 @@ data_lc %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd approx = 0.58
     ## # Groups:   Asset [50]
     ##    date       Asset     Return    sd
     ##    <date>     <glue>     <dbl> <dbl>
-    ##  1 2021-01-28 Asset_1   0.349  0.573
-    ##  2 2021-01-28 Asset_2  -0.140  0.571
-    ##  3 2021-01-28 Asset_3   0.275  0.564
-    ##  4 2021-01-28 Asset_4   0.182  0.579
-    ##  5 2021-01-28 Asset_5   0.306  0.577
-    ##  6 2021-01-28 Asset_6   0.0166 0.597
-    ##  7 2021-01-28 Asset_7   0.0428 0.582
-    ##  8 2021-01-28 Asset_8   0.0804 0.580
-    ##  9 2021-01-28 Asset_9   0.289  0.574
-    ## 10 2021-01-28 Asset_10  0.420  0.584
+    ##  1 2021-02-03 Asset_1   0.349  0.573
+    ##  2 2021-02-03 Asset_2  -0.140  0.571
+    ##  3 2021-02-03 Asset_3   0.275  0.564
+    ##  4 2021-02-03 Asset_4   0.182  0.579
+    ##  5 2021-02-03 Asset_5   0.306  0.577
+    ##  6 2021-02-03 Asset_6   0.0166 0.597
+    ##  7 2021-02-03 Asset_7   0.0428 0.582
+    ##  8 2021-02-03 Asset_8   0.0804 0.580
+    ##  9 2021-02-03 Asset_9   0.289  0.574
+    ## 10 2021-02-03 Asset_10  0.420  0.584
     ## # ... with 24,990 more rows
 
 ``` r
@@ -1695,26 +1642,30 @@ data_lco %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd approx = 1
     ## # Groups:   Asset [50]
     ##    date       Asset    Return    sd
     ##    <date>     <glue>    <dbl> <dbl>
-    ##  1 2021-01-28 Asset_1   0.692 1.03 
-    ##  2 2021-01-28 Asset_2   0.169 1.00 
-    ##  3 2021-01-28 Asset_3   0.844 1.01 
-    ##  4 2021-01-28 Asset_4   0.544 1.04 
-    ##  5 2021-01-28 Asset_5   0.449 1.04 
-    ##  6 2021-01-28 Asset_6   0.487 1.04 
-    ##  7 2021-01-28 Asset_7   0.333 1.04 
-    ##  8 2021-01-28 Asset_8   0.520 1.05 
-    ##  9 2021-01-28 Asset_9   1.49  0.981
-    ## 10 2021-01-28 Asset_10  0.750 1.02 
+    ##  1 2021-02-03 Asset_1   0.692 1.03 
+    ##  2 2021-02-03 Asset_2   0.169 1.00 
+    ##  3 2021-02-03 Asset_3   0.844 1.01 
+    ##  4 2021-02-03 Asset_4   0.544 1.04 
+    ##  5 2021-02-03 Asset_5   0.449 1.04 
+    ##  6 2021-02-03 Asset_6   0.487 1.04 
+    ##  7 2021-02-03 Asset_7   0.333 1.04 
+    ##  8 2021-02-03 Asset_8   0.520 1.05 
+    ##  9 2021-02-03 Asset_9   1.49  0.981
+    ## 10 2021-02-03 Asset_10  0.750 1.02 
     ## # ... with 24,990 more rows
 
-``` r
-# Something is not working as intended???
-```
+The above code demonstrates that the SD of asset returns is not being
+set correctly when trying to simulate from hybrid copulas. This may be
+because Tawn’s theorem only applied to bivariate copulas. Will be
+investigated in the future, but for now the hybrid copula functionality
+is left out fo MCmarkets functions.
 
 # Step 4: Simulating an Ensemble of Asset Markets
 
-The mc\_market function performs the Monte Carlo simulation of asset
-markets.
+This step turns the first three steps discussed thus far into a Monte
+Carlo simulation. This is done by simply repeating the first three steps
+a number of times. The mc\_market function performs the Monte Carlo
+simulation of asset markets.
 
 ## mc\_market
 
@@ -1876,9 +1827,11 @@ mc_data %>%
   theme(legend.position = "none") 
 ```
 
-<img src="README_files/figure-gfm/unnamed-chunk-6-1.png" width="80%" height="80%" />
+<img src="README_files/figure-gfm/unnamed-chunk-7-1.png" width="80%" height="80%" />
 
 ### sim\_market\_with\_progress Example
+
+One produce a progress bar when mapping over sim\_market.
 
 ``` r
 rm(sim_market)
@@ -1901,3 +1854,15 @@ object.size(x = market) %>% print(units = "Mb")
 ```
 
     ## 7.7 Mb
+
+# Readme Summary
+
+This readme accomplished its aim in developing a framework or the Monte
+Carlo simulation of financial asset markets. There was an investigation
+into using hybrid copulas to create markets with varying levels of left
+tail dependency, however, the this proves unsuccessful in high
+dimensions. Simulated markets can be have the normal, t or Clayton
+multivariate distributions. The assets returns can be normal, student t
+or SGT distributed and can exhibit numerous APARCH properties. In
+addition, markets with the multivariate normal or t distribution can be
+created to have any correlation matrix.

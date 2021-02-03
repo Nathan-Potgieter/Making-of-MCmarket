@@ -15,7 +15,7 @@ gc()
 
 # MCmarket an R Package Designed for Simulating Asset Market Returns
 
-This is the README for Nathan Potgieter's financial econometrics project. This work sets out a framework for the Monte Carlo simulation of asset markets. This frame work is built into the MCmarket package which will be available in on githib under the "Nathan-Potgieter/MCmarket" repository. Or maybe not if the name must be changed.
+This is the README for Nathan Potgieter's financial econometrics project. This work sets out a framework for the Monte Carlo simulation of asset markets. This framework is built into the MCmarket package which will be available in on githib under the "Nathan-Potgieter/MCmarket" repository.
 
 ## Aim
 
@@ -27,10 +27,10 @@ The Monte Carlo simulation routine involves the following steps:
 
 This example generates k periods of returns, for D Assets across N markets.
 
-1. Draw a series of k random uniformly distributed numbers (corresponding to k trading periods), across a set of D variables (or D assets), from a multivariate distribution with a given correlation matrix. 
+1. Draw a series of k random uniformly distributed numbers (corresponding to k trading periods), across a set of D variables (or D assets), from a multivariate distribution with a given correlation structure. 
     + This is accomplished using Euclidean (Gaussian or t-copula) or Archmediean Clayton copulas. In R this can easily be done using the _ellipCopula_, _archmCopula_ and _rcopula_ functions from the _copula_ package. 
 2. Convert the uniformly distributed data into something that more resembles the distribution of asset returns. MCmarket provides functionality to convert them into normal, student-t or skewed-generalized t distributions. 
-    + This is done the same way one would convert p-values into test statistics. In are the dnorm(), dt() and sgt::dsgt() functions are used.
+    + This is done the same way one would convert p-values into test statistics with the dnorm(), dt() and sgt::dsgt() functions.
     + Technically this is accomplished via the inversion of the cumulative distribution function (CDF).
 3. Induce mean and variance persistence to the series, by plugging the random numbers resulting from step 2 into a ARMA(1,1) + APARCH(1,1) equation as the innovations. 
     + If the parameters are set accordingly the resulting series should possess the volatility clustering observed in empirical asset returns. 
@@ -199,9 +199,9 @@ gen_corr(D = 60, clusters = "overlapping", num_clusters = c(10,5,4,2)) %>% ggcor
 
 Since it would also be useful for MCmarkets's users to have easy access to some empirical correlation matrices, a data set containing correlation matrices labeled "stressed", "rally" and "normal" is now constructed.
 
-S&P500 data since 1/01/2000 is used to  sample covariance matrices that can be used as inputs in the Monte Carlo procedure. These matrices will be made available as part of the MCmarket package. They can also be used generative correlation models, like CorrGAN (https://marti.ai). At a later stage MCmarket may incorporate some generative correlation matrix models, preferably those like the conditional CorrGAN or conditional CorrVAE. this will allow users to randomly simulate different types of realistic correlation matrices.
+S&P500 data since 1/01/2000 is used to  sample covariance matrices that can be used as inputs in the Monte Carlo procedure. These matrices will be made available as part of the MCmarket package. They can also be used in correlation matrix generative models, like CorrGAN (https://marti.ai). At a later stage MCmarket may incorporate some CorrGAN model, preferably those like the conditional CorrGAN or conditional CorrVAE. this will allow users to randomly simulate different types of realistic correlation matrices.
 
-Note that this code is not run when building this README, it would simply take too long to knit this document.
+Note that the code  below is not run when building this README, it would simply take too long to knit this document.
 
 #### Getting SNP 500 data since 2000
 
@@ -472,7 +472,7 @@ This section explores the feasibility of using various types of copulas as part 
 
 #### Elliptal copulas
 
-The Gaussian and t Elliptal copulas allow us to specify their correlation matrix before randomly selecting observations from their multivariate distribution. Doing so allows one to produce random draws of uniformly distributed variables that adhere to the user specified correlation structure. The chunk of code below demonstrates this functionality. 
+The Gaussian and t copulas from the Elliptal family allow us to specify their correlation matrix before randomly selecting observations from their multivariate distribution. Doing so allows one to produce random draws of uniformly distributed variables that adhere to the user specified correlation structure. The chunk of code below demonstrates this functionality. 
 
 ```{r Elliptal Copulas, warning=FALSE}
 #loading copula package; already loaded
@@ -527,11 +527,11 @@ p1
 
 ### Archimedean Copulas
 
-This work seeked out a method to produce simulated markets with high left tail dependence. This would in theory enable the simulation of markets in which the correlation between assets increases when when overall asset returns are low. (i.e. during crisis periods) 
+This work searched for a method to produce simulated markets with high left-tail dependence. This would in theory enable the simulation of markets in which the correlation between assets increases when when overall asset returns are low. (i.e. during crisis periods) 
 
-Unfortunately, Elliptal copulas cannot be calibrated to exhibit dynamic correlations (i.e left-tail dependence). Therefore, in this section we examine some properties of Archimedean copulas which do exhibit left-tail dependence. Unfortunately, Archimedean copulas don't allow us to stipulate their correlation matrix. 
+Unfortunately, Elliptal copulas cannot be calibrated to exhibit dynamic correlations (i.e left-tail dependence). Therefore, in this section we examine some properties of Archimedean copulas which do exhibit tail dependence. Unfortunately, Archimedean copulas don't allow us to stipulate their correlation matrix. 
 
-Archimedean copulas such as the Clayton, Frank, Gumbel and Joe exhibit higher levels of dependence at the tails of the multivariate distribution. In this section we will examine the Clayton copula due to it exhibiting enhanced left-tail dependencies. Other copulas have been examined, but the Clayton copula is currently the only Archimedean copula, in the copula package, that allows random sampling from multivariate distributions with with large dimensions. Additionally, the other copulas have to be rotated 180 degrees to exhibit left-tail dependence (since they naturally posses right-tail dependence). This rotation step can be quite time consuming and often fails in higher dimensions. Therefore, the choice to focus on only using the Clayton copula was largely due to practical concerns raised when tinkering with alternative copulas. Therefore, in future work it would be beneficial to explore alternative high dimensional, left-tail copulas. 
+Archimedean copulas such as the Clayton, Frank, Gumbel and Joe exhibit higher levels of dependence at the tails of the multivariate distribution. In this section we will examine the Clayton copula due to it exhibiting enhanced left-tail dependencies. Other copulas have been examined, but the Clayton copula is currently the only Archimedean copula, in the copula package, that allows random sampling from multivariate distributions with with large dimensions. Additionally, the other copulas have to be rotated 180 degrees to exhibit left-tail dependence (since they naturally posses right-tail dependence). This rotation step can be quite time consuming and often fails in higher dimensions. Therefore, the choice to focus on only using the Clayton copula was largely due to practical concerns raised when tinkering with alternative copulas. Therefore, in future work it would be beneficial to explore alternative high dimensional left-tail copulas. 
 
 
 ```{r Archimedean copula, warning=TRUE}
@@ -608,8 +608,7 @@ Since this project wanted to include the left-tail dependence property from the 
 
 @ruenzi states that flexible copula structures an be created through convex combinations of basic copulas. The authors use the 2D case and Tawn's theorem (below) to construct hybrid bivariate copulas. 
 
-Tawn (1988) "shows that a copula is a convex set and
-every convex combination of existing copula functions is again a copula" [@ruenzi2011, p.8].
+Tawn (1988) "shows that a copula is a convex set and every convex combination of existing copula functions is again a copula" [@ruenzi2011, p.8].
 
 Thus, if  $C_1(U_N)$  and  $C_2(U_N)$ are 2D copulas and $w$ is a weighting variable between 0 and 1, then 
 
@@ -617,7 +616,7 @@ Thus, if  $C_1(U_N)$  and  $C_2(U_N)$ are 2D copulas and $w$ is a weighting vari
 
 is a unique copula. Therefore, a hybrid copula $C(U_N)$ can be created by linearly weighting an Elliptical and Archimedean copula of the dimension 2. 
 
-This work attempted to generalize this finding into higher dimensional copulas. First lets look at some 2D examples. We will investigate if this works in higher dimensions in Section \ref{test_sim_inno} 
+This work attempted to generalize this finding into higher dimensional copulas. First lets look at some 2D examples. We will investigate if this works in higher dimensions in Section \ref{test_sim_inno}.
 
 ### Generatimg Some 2D Hybrid Copulas.
 This chunk of code creates and plots some pseudo hybrid copulas by linearly weighting the random numbers generated from a student-t and Clayton copula. Note how when increasing the Clayton weight, observations concentrate at the bottom left of the density plots.
@@ -709,7 +708,7 @@ rCopula(10000, copula = claycop) %>% as_tibble() %>% gather(Key, Value) %>%
 
 ```
 
-This section has successfully demonstrated how to use copulas to simulate random uniformly distributed data with any that adhered to the given correlation matrix. It also found a potential way to simulate data with hybrid copulas. 
+This section has successfully demonstrated how to use copulas to simulate random uniformly distributed data, with some that adhered to the given correlation matrix. It also found a potential way to simulate data with hybrid copulas. 
 
 # Step 2: Converting the uniformly distributed variables to something that better resembles the distribution of asset returns.
 
@@ -785,7 +784,7 @@ legend("topleft", inset=.05, title="Distributions",
   labels, lwd=2, lty=c(1, 1, 1, 1, 2), col=colors)
 ```
 
-### Here I demonstrate how a uniformly distributed observations can be transformed into other distributions.
+### Here I demonstrate how uniformly distributed observations can be transformed into other distributions.
 
 ```{r}
 # Generating a uniform (0,1) series
@@ -821,219 +820,15 @@ sgt  %>% ggplot(aes(x = value)) +
 
 ```
 
-
-
-
 ```{r cleaning workspace, include=FALSE}
 rm(list =ls())
 gc()
 
 ```
 
-### Calibrating the SGT with Architypal Low, Medium and High Risk Assets.
-
-At this stage, the infomation gathered in this section has not yet been incorporated into MCmarket. At a later stage the estimated parameters in this section will be used in the MCmarkets presets. These will allow non technical users to simulate predefined market types with no knowledge of the underlying statistical concepts. It is included for not to demonstrate the extent of my research thus far.
-
-##### This section will most likely be scraped, due to the sensitivity of the parameters.
-
-We now look at data on each share in the S&P500 over the last 90 months. The shares with the top 5% highest annualized SD's are used to model an archetypal high risk asset, shares with the 5% lowest annualized SD's are used to model an archetypal low risk asset, while shares with SD between the 45th and 55th percentile are used to model the medium risk asset. 
-
-```{r partisioning by risk}
-load("data/SNP_returns.Rda")
-
-high_vol <-
-  SNP_returns %>% 
-  dplyr::filter(date==last(date)) %>% 
-  arrange(desc(sd)) %>% 
-  group_by(date) %>% 
-  slice_max(., order_by = sd, prop = 0.1 ) %>%  #select top 10% SD's
-  pull(symbol)
-
-low_vol <-
-  SNP_returns %>% 
-  dplyr::filter(date==last(date)) %>% 
-  arrange(sd) %>% 
-  slice_min(., order_by = sd, prop = 0.1) %>% #select bot 10% SD's
-  pull(symbol)
-
-medium_vol <-
-  SNP_returns %>% 
-  dplyr::filter(date==last(date)) %>% 
-  arrange(sd) %>% 
-  group_by(date) %>% 
-  dplyr::filter(sd>=quantile(sd, probs = 0.45, na.rm = T) &
-                  sd<=quantile(sd, probs = 0.55, na.rm = T)) %>% 
-  pull(symbol)
-```
-
-##### Plotting low, medium and high risk returns.
-
-```{r Plotting returns, echo=FALSE}
-
-p_load(patchwork)
-p1 <- SNP_returns %>% 
-  mutate(Risk = 
-           ifelse(symbol %in% high_vol, "High Risk",
-                  ifelse(symbol %in% low_vol, "Low Risk",
-                         ifelse(symbol %in% medium_vol, "Medium Risk", "Other")))) %>% 
-  dplyr::filter(Risk != "Other") %>% 
-  ggplot(aes(x = return, fill = Risk, color = Risk)) +
-  geom_density(alpha = 0.2, position = "identity", na.rm = TRUE, show.legend = TRUE) +
-  coord_cartesian(xlim = c(-0.06,0.06)) +
-  xlab(NULL) +
-  theme_bw() +
-  theme(legend.position = "none") 
-p2 <- p1 + 
-  labs(subtitle = "Left-Tail") +
-  coord_cartesian(xlim = c(-0.2,-0.05), ylim = c(0,2)) +
-  xlab("Return") +
-  theme(legend.position = "bottom", legend.title = element_blank())
-
-p1/p2 + plot_annotation(title = "Distribution of Annualized Returns", 
-                        caption = "Yahoo Data")
-
-```
-
-#### Estimating SGT
-
-This section used maximum likelihood estimation to estimate the parameters of the SGT in each market type.
-
-- See "code/filter_resid.R" to see how filtered residuals (garch.Rda) was obtained.
-- See "code/estimate_sgt.R" to see how the parameters of the sgt were estimated. 
-
-```{r estimate sgt, eval=FALSE, include=FALSE}
-load("data/garch.Rda")
-
-estimate_sgt <- function(df, start = NULL){
-  x <- df[[1]]
-  X.f <- X ~ x
-  if(is.null(start)) start <- list(mu = 0, sigma = 0.03, lambda = -0.02, p = 1.5, q = 2.25)
-  result <- sgt.mle(X.f = X.f, start = start, finalHessian = "BHHH")
-  summary(result)
-}
-
-# High Vol stocks
-df <- resid_high_vol %>% 
-  dplyr::mutate(date = unique(SNP_returns$date)) %>% 
-  gather(symbol, return, -date) %>% 
-  dplyr::filter(date>first(date)) %>% 
-  select(return)
-
-#start <- list(mu = -0.0001957195, sigma = 0.04217965, lambda = -0.0062424590, p= 1.452239, q = 2.058042)
- # sgt_high_vol <- estimate_sgt(df, start = start)
- # save(sgt_high_vol, file = "data/sgt_high_vol.Rda")
-load(file = "data/sgt_high_vol.Rda")
-
-# Low Vol stocks
-df <- resid_low_vol %>% 
-  mutate(date = unique(SNP_returns$date)) %>% 
-  gather(symbol, return, -date) %>% 
-  dplyr::filter(date>first(date)) %>% 
-  select(return)
-
- # sgt_low_vol <- estimate_sgt(df)
- # save(sgt_low_vol, file = "data/sgt_low_vol.Rda")
-load(file = "data/sgt_low_vol.Rda")
-
-
-#Medium Vol stocks
-df <- resid_medium_vol %>% 
-  mutate(date = unique(SNP_returns$date)) %>% 
-  gather(symbol, return, -date) %>% 
-  dplyr::filter(date>first(date)) %>% 
-  select(return)
-
- # sgt_medium_vol <- estimate_sgt(df)
- # save(sgt_medium_vol, file = "data/sgt_medium_vol.Rda")
-load(file = "data/sgt_medium_vol.Rda")
-
-```
-
-See the kernal density estimates of each return type with the overlayed SGT calibrated by the maximum likelihood estimation (above). Notive how poorly the hight risk SGT matches the KDE. Will need to tinker and fix this issue at a later stage. 
-
-```{r plotting marginal distributions, eval=FALSE, include=FALSE}
-# Plot distribution function
-kde_plot <- function(df, sgt_pars, fill, title = NULL, subtitle = NULL, 
-                     caption = NULL, xlim, ylim, xlab = NULL, ylab = NULL){
-  df %>% 
-  gather(symbol, ret) %>% 
-  ggplot(aes(x = ret)) +
-  geom_density(fill = fill, alpha = 0.7, position = "identity", show.legend = FALSE) +
-  stat_function(fun = function(x) dsgt(x, 
-                                       mu = sgt_pars$mu, 
-                                       sigma = sgt_pars$sigma,
-                                       lambda = sgt_pars$lambda,
-                                       p = sgt_pars$p,
-                                       q = sgt_pars$q),
-                color = "black", linetype = "dotdash", size = 1, position = "identity") +
-  labs(title = title, 
-       subtitle = subtitle, 
-       x = xlab, y=ylab,
-       caption = caption) +
-   coord_cartesian(xlim = xlim,
-                  ylim = ylim)  +
-  theme_bw()
-}
-
-#Plotting 
-p_load(patchwork)
-#high_vol_plot
-sgt_pars <- sgt_high_vol$estimate %>% as.list()
-sgt_pars <- list(mu = 0, sigma = 1.5e-02 , lambda = -4.020744e-02,
-                 p = 1.929499e+00, q = 5.802265e+00)
-
-p1 <- kde_plot(resid_high_vol, sgt_pars, 
-         fill = "red", 
-         xlim = c(-0.15,0.15),
-         ylim = NULL)
-
-p2 <- kde_plot(resid_high_vol, sgt_pars, 
-         fill = "darkred", 
-         xlim = c(-0.4,-0.15),
-         ylim = c(0, 0.125),
-         xlab = "Filtered Returns")
-p1/p2 + plot_annotation(title = "Density of High Volitility Return's", 
-                        subtitle = "with overlayed SGT function",
-                        caption = "Yahoo Data")
-
-
-#low vol plot
-sgt_pars <- sgt_low_vol$estimate %>% as.list()
-p1 <- kde_plot(resid_low_vol, sgt_pars, 
-         fill = "green", 
-         xlim = c(-0.1,0.1),
-         ylim =  NULL)
-
-p2 <- kde_plot(resid_low_vol, sgt_pars, 
-         fill = "darkgreen", 
-         xlim = c(-0.15,-0.05),
-         ylim =  c(0,0.15),
-         xlab = "Filtered Returns")
-p1/p2 + plot_annotation(title = "Density of Low Volitility Return's", 
-                        subtitle = "with overlayed SGT function",
-                        caption = "Yahoo Data")
-
-
-#medium vol plot
-sgt_pars <- sgt_medium_vol$estimate %>% as.list()
-p1 <- kde_plot(resid_medium_vol, sgt_pars, 
-         fill = "orange", 
-         xlim = c(-0.1,0.1),
-         ylim =  NULL)
-
-p2 <- kde_plot(resid_medium_vol, sgt_pars, 
-         fill = "darkorange", 
-         xlim = c(-0.25,-0.07),
-         ylim =  c(0,0.15),
-         xlab = "Filtered Returns")
-p1/p2 + plot_annotation(title = "Density of Medium Volitility Return's", 
-                        subtitle = "with overlayed SGT function",
-                        caption = "Yahoo Data")
-```
-
 # Step 3: Introducing Volatility Persistence 
  
-The simulated innovations do not yet demonstrate the mean and/or volatility persistence observed in real asset return series. Therefore, they can be thought of as the innovations of some time-series model/process. In this step I introduce autocorrelation and volatility using an ARMA(p,q) + APGARCH(q,p) model. 
+The simulated innovations do not yet demonstrate the mean and/or volatility persistence observed in real asset return series. Therefore, they can be thought of as the innovations of some time-series model/process. In this step I introduce mean and variance persistence using an ARMA(p,q) + APGARCH(q,p) model. 
 
 #### Inreresting artical on garch modeling and forecastig
 - "The leptokurtosis, clustering volatility and leverage effects characteristics of financial time series justifies the GARCH modelling approach. The non-linear characteristic of the time series is used to check the Brownian motion and investigate into the temporal evolutionary patterns. The non-linear methods of forecasting and signal analysis are gaining popularity in stock market because of their robustness in feature extraction and classification." source: https://towardsdatascience.com/garch-processes-monte-carlo-simulations-for-analytical-forecast-27edf77b2787
@@ -1176,8 +971,10 @@ sim_garch <- function(innovations,
 ## Demonstrating sim_garch
 
 Note that:
-- volatility clusters and significant autocorrelation appear in the series after it is processed through the sim_garch function. 
-- sim_garch is a deterministic function.  
+
+1) volatility clusters and significant autocorrelation appear in the series after it is processed through the sim_garch function. 
+
+2) sim_garch is a deterministic function.  
 
 ```{r}
 set.seed(32156454)
@@ -1703,7 +1500,7 @@ data_lco %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd approx = 1
 
 ```
 
-The above code demonstrates that the SD of asset returns is not being set correctly when trying to simulate from hybrid copulas. This may be because Tawn's theorem only applied to bivariate copulas. Will be investigated in the future. 
+The above code demonstrates that the SD of asset returns is not being set correctly when trying to simulate from hybrid copulas. This may be because Tawn's theorem only applied to bivariate copulas. Will be investigated in the future, but for now the hybrid copula functionality is left out fo MCmarkets functions.
 
 # Step 4: Simulating an Ensemble of Asset Markets
 
