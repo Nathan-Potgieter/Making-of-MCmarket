@@ -84,21 +84,30 @@ Katzke. The function is located in the gen\_corr.R code file.
 
 ``` r
 #' @title gen_corr
-#' @description This function allows users to easily generate ad hoc correlation
-#' matrices with a set number of clusters and up to 4 layers.
-#' @param D The number of variables, generates an D by D correlation matrix.
+#' @description This function allows users to easily generate a user-defined ad hoc correlation
+#' matrix with up to four layers of clusters.
+#' @param D the number of variables. The output is a D by D correlation matrix.
 #' @param clusters a character string specifying the type of cluster structure.
-#' Available options are "none", for a correlation matrix with no clusters,
-#' "non-overlapping" for a correlation matrix with one layer of clusters, and
-#' "overlapping" for a correlation matrix with up to 4 layers and a set number
+#' Available options are:
+#'
+#' "none" for a correlation matrix with no clusters, but significant correlation
+#' between constituents.
+#'
+#' "non-overlapping" for a correlation matrix with one layer of clusters.
+#'
+#' "overlapping" for a correlation matrix with up to four layers and a set number
 #' of clusters per layer.
-#' @param num_clusters if clusters = "non-overlapping" or clusters = "none" then
-#' num_clusters is an integer value specifying the number of clusters. If clusters =
-#' "overlapping" then num_clusters must be a vector, arranged in descending order, of
-#' length equal to num_Layers specifying the number of clusters per layer.
-#' @param num_Layers an positive integer value between 1 and 4, specifying the number
-#' of cluster layers. Only needed if using "overlapping" clusters.
-#' @return this function returns a D by D correlation matrix.
+#' @param num_clusters If clusters = "none", then num_clusters is not used.
+#'
+#' If clusters = "non-overlapping", then num_clusters is an integer indicating the number of clusters.
+#'
+#' If clusters = "overlapping", then num_clusters is a vector of length less than or equal to four. The length of
+#' num_clusters specifies the number of cluster layers and the integers within the vector specify the number of clusters
+#' per layer. It is preferable to arrange the vector in descending order, since failing to do so can result in a
+#' unique output, which may not contain the intended number of layers. Additionally, using combinations with repeating
+#' numbers of clusters, for example num_clusters = C(10, 10, 5, 5)) will produce fewer layers, but unique intra-cluster
+#' correlations (See examples).
+#' @return Returns a D by D correlation matrix.
 #'
 #' @import propagate
 #'
@@ -108,28 +117,36 @@ Katzke. The function is located in the gen\_corr.R code file.
 #'
 #' ### This generates a 50 by 50 correlation matrix with no clusters.
 #' gen_corr(D = 50, clusters = "none) %>%
-#'          ggcorrplot(title = "Overlapping clusters")
+#'          ggcorrplot(title = "no clusters")
 #'
 #' ### This generates a 50 by 50 correlation matrix with 5 non-overlapping clusters.
 #' gen_corr(D = 50, clusters = "non-overlapping) %>%
-#'          ggcorrplot(title = "Overlapping clusters")
+#'          ggcorrplot(title = "non-overlapping clusters")
 #'
 #' ### This generates a 60 by 60 correlation matrix consisting
 #' ### of 4 layers with 10, 5, 3 and 2 clusters respectively.
 #' gen_corr(D = 60,
 #'          clusters = "overlapping",
-#'          num_Layers = 4,
 #'          num_clusters = c(10,5,3,2)) %>%
-#'                   ggcorrplot(title = "Overlapping clusters")
+#'                   ggcorrplot(title = "overlapping clusters")
+#'
+#' ### Try tinkering with the num_clusters argument in unique ways to effect the
+#' ### within cluster correlation coefficients.
+#' ### Two cluster layers with low overall correlation.
+#' gen_corr(D = 50,
+#'          clusters = "overlapping",
+#'          num_clusters = c(10,10,10,2)) %>%
+#'                   ggcorrplot(title = "overlapping clusters") %>%
+#'                   ggcorrplot(title = "overlapping clusters")
 #'
 #' }
 #' @export
 gen_corr <- function (D = 50,
                       clusters = c("none", "non-overlapping", "overlapping"),
-                      num_clusters = NULL,
-                      num_Layers = NULL) {
+                      num_clusters = NULL) {
 
         Grps <- num_clusters
+        num_layers <- length(num_clusters)
         #set.seed(123)
 
         if (!(clusters %in%  c("none", "non-overlapping", "overlapping"))) stop("Please provide a valid clusters argument")
@@ -138,8 +155,7 @@ gen_corr <- function (D = 50,
                 # Unclustered covariance matrix
                 Sigma <- diag(D)
                 for (i in 1:D) for (j in 1:D) Sigma[i,j] <- 0.9^abs(i-j)
-                Sigma <- propagate::cor2cov(Sigma, runif(D, 1, 5))
-                corr <- cov2cor(Sigma)
+
         } else
 
                 if(clusters == "non-overlapping"){
@@ -147,59 +163,51 @@ gen_corr <- function (D = 50,
                         # distinct non-overlapping clusters:
                         #----------------------
 
-                        if(is.null(num_clusters)) stop("Please provide a valid num_clusters argument when using Overlapping clusters")
+                        if(is.null(num_clusters)) stop("Please provide a valid num_clusters argument when using non-overlapping clusters")
+                        if (num_layers>1) stop("Please provede a valid num_clusters argument of length one when using non-overlapping clusters")
 
-                        Sigma <- matrix(0.9, D, D)
+                        Sigma <- matrix(0.6, D, D)
                         diag(Sigma) <- 1
 
                         for (i in 1:Grps) {
                                 ix <- seq((i-1) * D / Grps + 1, i * D / Grps)
                                 Sigma[ix, -ix] <- 0.0001                       #think about
                         }
-                        Sigma <- propagate::cor2cov(Sigma, runif(D, 1, 5))
-                        corr <- cov2cor(Sigma)
+
                 } else
 
                         if(clusters == "overlapping"){
                                 #----------------------
                                 # distinct overlapping clusters:
                                 #----------------------
+                                if(is.null(num_clusters)) stop("Please provide a valid num_clusters argument when using overlapping clusters")
+                                if (num_layers>4) stop("Please provede a valid num_clusters argument of length less than or equal to 4 when using non-overlapping clusters")
 
-                                if(is.null(num_Layers)|num_Layers<2){
-                                        stop("Please provide a valid num_Layers argument when using Overlapping clusters")
-                                }else
-                                        if(length(num_clusters) != num_Layers){
-                                                stop("Please provide a num_clusters argument with length equal to num_Layers")
-                                        }
-
-                                Sigma <- matrix(0.6, D, D)
+                                Sigma <- matrix(0.7, D, D)
                                 diag(Sigma) <- 1
 
                                 for (i in 1:Grps[1]) {
                                         ix <- seq((i-1) * D / Grps[1] + 1, i * D / Grps[1])
-                                        Sigma[ix, -ix] <- 0.7
+                                        Sigma[ix, -ix] <- 0.5
                                 }
-                                if(num_Layers>=2){
+                                if(num_layers>=2){
                                         for (i in 1:Grps[2]) {
                                                 ix <- seq((i-1) * D / Grps[2] + 1, i * D / Grps[2])
-                                                Sigma[ix, -ix] <- 0.5
-                                        } }
-                                if(num_Layers>=3){
-                                        for (i in 1:Grps[3]) {
-                                                ix <- seq((i-1) * D / Grps[3] + 1, i * D / Grps[3])
                                                 Sigma[ix, -ix] <- 0.3
                                         } }
-                                if(num_Layers>=4){
+                                if(num_layers>=3){
+                                        for (i in 1:Grps[3]) {
+                                                ix <- seq((i-1) * D / Grps[3] + 1, i * D / Grps[3])
+                                                Sigma[ix, -ix] <- 0.15
+                                        } }
+                                if(num_layers>=4){
                                         for (i in 1:Grps[4]) {
                                                 ix <- seq((i-1) * D / Grps[4] + 1, i * D / Grps[4])
                                                 Sigma[ix, -ix] <- 0.05
                                         } }
                         }
 
-        Sigma <- propagate::cor2cov(Sigma, runif(D, 1, 5))  #Is this necessary???
-        corr <- cov2cor(Sigma)
-
-        return(corr)
+        return(Sigma)
 
 }
 ```
@@ -885,32 +893,34 @@ fGarch’s garchspec and garchsim functions.
 #' @title sim_garch
 #' @description This function takes a vector of random numbers, referred to as innovations, and
 #' induces mean and variance persistence by inserting them into an ARMA(1,1) + APARCH(1,1) model.
-#' @param innovations a vector containing the random numbers/ the innovations of the
+#' @param innovations a vector containing the random numbers or the innovations of the
 #' ARIMA + GARCH process.
-#' @param omega a positive value defining the coefficient of the variance equation, default is 5e-04.
+#' @param omega a positive value defining the coefficient of the variance equation. The default is 5e-04.
 #' @param gamma a value defining the APARCH leverage parameter in the variance equation. The default
-#' of 0, implies no leverage effect and therefore corresponds with the standard GARCH model.
-#' @param alpha a value defining the value of the autoregressive variance coefficient, default is 0.
-#' @param beta a value defining the variance coefficient, default is 0.
-#' @param mu  a value defining the mean, default is 0.
-#' @param ar  a value defining the autoregressive ARMA coefficient, default is 0.
-#' @param ma a value defining the moving average ARMA coefficient, default is 0.
-#' @param delta a strictly positive value the delta parameter of the APARCH model. The default is 2,
-#' which corresponds with the standard GARCH model.
+#' of 0 implies no leverage effect and therefore, corresponds to the standard GARCH model.
+#' @param alpha a value defining the autoregressive variance coefficient. The default is 0.
+#' @param beta a value defining the variance coefficient. The default is 0.
+#' @param mu  a value defining the mean. The default is 0.
+#' @param ar  a value defining the autoregressive ARMA coefficient. The default is 0.
+#' @param ma a value defining the moving average ARMA coefficient. The default is 0.
+#' @param delta a strictly positive value defining the delta parameter of the APARCH model. The default is 2,
+#' which corresponds to the standard GARCH model.
 #' @param simple a logical parameter indicating if the output should be a simple vector containing just the
 #' resulting ARIMA + GARCH series, or if FALSE a three column dataframe containing z - the innovations, h - the
 #'  conditional variance and y - ARMA + APARCH series.
-#' @note  (1) It is suggested that the randomly distributed numbers be mean zero and standard
-#' deviation one, as these attributes can be set by the model argument.
+#'
+#' @return if simple = TRUE a vector of the resulting ARMA + APARCH series.
+#'
+#' If simple = FALSE a three column dataframe containing z - the innovations, h - the conditional variance and y - ARMA +
+#' APARCH series. Note the length of the resulting series will be one observation less than that of the innovations.
+#' The ARMA(1,1) + APARCH(1,1) model effectively consumes this lag when producing its first value.
+#' @note  (1) It is suggested that the randomly distributed numbers have a mean of zero and standard
+#' deviation of one, as these attributes can be set within sim_garch.
 #'
 #' (2) For more information on the ARMA + APARCH parameters see:
 #'
-#' Ruppert, D. and Matteson, D.S., 2011. Statistics and data analysis for financial engineering (Vol. 13). New York: Springer.
-#'
-#'  @return if simple = TRUE a vector of the resulting ARMA + APARCH series, else if simple = FALSE a
-#' three column dataframe containing z - the innovations, h - the conditional variance and y - ARMA +
-#' APARCH series. Note the length of the resulting series will one observation less than that that of the innovations
-#' as ARMA(1,1) + APARCH(1,1) model effectively consumes this lag when producing its first value.
+#' Ruppert, D. and Matteson, D.S., 2011. Statistics and data analysis for financial engineering (Vol. 13).
+#' New York: Springer.
 #'
 #' @importFrom dplyr tibble
 #'
@@ -1133,16 +1143,16 @@ data %>% group_by(Asset) %>% mutate(mean = mean(Return),
     ## # Groups:   Asset [10]
     ##    date       Asset    Return     mean    sd
     ##    <date>     <chr>     <dbl>    <dbl> <dbl>
-    ##  1 2021-02-02 Asset_1  -1.19   0.0425  1.02 
-    ##  2 2021-02-02 Asset_2  -0.251  0.00429 1.02 
-    ##  3 2021-02-02 Asset_3   0.259  0.0168  0.999
-    ##  4 2021-02-02 Asset_4  -1.91   0.00639 1.02 
-    ##  5 2021-02-02 Asset_5  -0.156  0.0267  1.00 
-    ##  6 2021-02-02 Asset_6  -0.181 -0.00721 0.972
-    ##  7 2021-02-02 Asset_7  -0.865  0.0258  0.963
-    ##  8 2021-02-02 Asset_8  -0.847 -0.0127  0.963
-    ##  9 2021-02-02 Asset_9  -0.859  0.0172  0.928
-    ## 10 2021-02-02 Asset_10 -1.06  -0.00700 0.972
+    ##  1 2021-02-03 Asset_1  -1.19   0.0425  1.02 
+    ##  2 2021-02-03 Asset_2  -0.251  0.00429 1.02 
+    ##  3 2021-02-03 Asset_3   0.259  0.0168  0.999
+    ##  4 2021-02-03 Asset_4  -1.91   0.00639 1.02 
+    ##  5 2021-02-03 Asset_5  -0.156  0.0267  1.00 
+    ##  6 2021-02-03 Asset_6  -0.181 -0.00721 0.972
+    ##  7 2021-02-03 Asset_7  -0.865  0.0258  0.963
+    ##  8 2021-02-03 Asset_8  -0.847 -0.0127  0.963
+    ##  9 2021-02-03 Asset_9  -0.859  0.0172  0.928
+    ## 10 2021-02-03 Asset_10 -1.06  -0.00700 0.972
     ## # ... with 9,990 more rows
 
 ``` r
@@ -1239,16 +1249,16 @@ data %>% group_by(Asset) %>% mutate(mean = mean(Return),
     ## # Groups:   Asset [10]
     ##    date       Asset     Return     mean    sd
     ##    <date>     <chr>      <dbl>    <dbl> <dbl>
-    ##  1 2021-02-02 Asset_1   0.0251 -0.0223  0.585
-    ##  2 2021-02-02 Asset_2   0.251   0.0142  0.587
-    ##  3 2021-02-02 Asset_3   0.422  -0.00467 0.603
-    ##  4 2021-02-02 Asset_4   0.279  -0.00350 0.609
-    ##  5 2021-02-02 Asset_5   0.528  -0.00340 0.600
-    ##  6 2021-02-02 Asset_6  -0.560   0.00799 0.602
-    ##  7 2021-02-02 Asset_7  -0.860   0.0220  0.603
-    ##  8 2021-02-02 Asset_8  -0.733  -0.00430 0.586
-    ##  9 2021-02-02 Asset_9  -0.728   0.00940 0.587
-    ## 10 2021-02-02 Asset_10 -0.829  -0.00975 0.606
+    ##  1 2021-02-03 Asset_1   0.0251 -0.0223  0.585
+    ##  2 2021-02-03 Asset_2   0.251   0.0142  0.587
+    ##  3 2021-02-03 Asset_3   0.422  -0.00467 0.603
+    ##  4 2021-02-03 Asset_4   0.279  -0.00350 0.609
+    ##  5 2021-02-03 Asset_5   0.528  -0.00340 0.600
+    ##  6 2021-02-03 Asset_6  -0.560   0.00799 0.602
+    ##  7 2021-02-03 Asset_7  -0.860   0.0220  0.603
+    ##  8 2021-02-03 Asset_8  -0.733  -0.00430 0.586
+    ##  9 2021-02-03 Asset_9  -0.728   0.00940 0.587
+    ## 10 2021-02-03 Asset_10 -0.829  -0.00975 0.606
     ## # ... with 9,990 more rows
 
 ### sim\_market
@@ -1258,7 +1268,9 @@ first three steps of the MCcarlo process. See the Roxygen documentation
 below for further detail.
 
 For the purpose of this readme this version of sim\_inno is slightly
-different to that in the final version of MCmarket.
+different to that in the final version of MCmarket. This vrsion allow
+one to create hybrid multivariate copulas, this functionality is tested
+in section .
 
 ``` r
 #' @title sim_market
@@ -1602,16 +1614,16 @@ data_nlc %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd = 1
     ## # Groups:   Asset [50]
     ##    date       Asset    Return    sd
     ##    <date>     <glue>    <dbl> <dbl>
-    ##  1 2021-02-03 Asset_1   0.405 0.980
-    ##  2 2021-02-03 Asset_2   0.305 1.01 
-    ##  3 2021-02-03 Asset_3   0.299 1.03 
-    ##  4 2021-02-03 Asset_4   0.785 1.03 
-    ##  5 2021-02-03 Asset_5   0.233 1.00 
-    ##  6 2021-02-03 Asset_6   0.803 1.01 
-    ##  7 2021-02-03 Asset_7  -0.285 0.991
-    ##  8 2021-02-03 Asset_8   0.489 0.999
-    ##  9 2021-02-03 Asset_9   0.326 0.983
-    ## 10 2021-02-03 Asset_10  0.359 0.990
+    ##  1 2021-02-04 Asset_1   0.405 0.980
+    ##  2 2021-02-04 Asset_2   0.305 1.01 
+    ##  3 2021-02-04 Asset_3   0.299 1.03 
+    ##  4 2021-02-04 Asset_4   0.785 1.03 
+    ##  5 2021-02-04 Asset_5   0.233 1.00 
+    ##  6 2021-02-04 Asset_6   0.803 1.01 
+    ##  7 2021-02-04 Asset_7  -0.285 0.991
+    ##  8 2021-02-04 Asset_8   0.489 0.999
+    ##  9 2021-02-04 Asset_9   0.326 0.983
+    ## 10 2021-02-04 Asset_10  0.359 0.990
     ## # ... with 24,990 more rows
 
 ``` r
@@ -1622,16 +1634,16 @@ data_lc %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd approx = 0.58
     ## # Groups:   Asset [50]
     ##    date       Asset     Return    sd
     ##    <date>     <glue>     <dbl> <dbl>
-    ##  1 2021-02-03 Asset_1   0.349  0.573
-    ##  2 2021-02-03 Asset_2  -0.140  0.571
-    ##  3 2021-02-03 Asset_3   0.275  0.564
-    ##  4 2021-02-03 Asset_4   0.182  0.579
-    ##  5 2021-02-03 Asset_5   0.306  0.577
-    ##  6 2021-02-03 Asset_6   0.0166 0.597
-    ##  7 2021-02-03 Asset_7   0.0428 0.582
-    ##  8 2021-02-03 Asset_8   0.0804 0.580
-    ##  9 2021-02-03 Asset_9   0.289  0.574
-    ## 10 2021-02-03 Asset_10  0.420  0.584
+    ##  1 2021-02-04 Asset_1   0.349  0.573
+    ##  2 2021-02-04 Asset_2  -0.140  0.571
+    ##  3 2021-02-04 Asset_3   0.275  0.564
+    ##  4 2021-02-04 Asset_4   0.182  0.579
+    ##  5 2021-02-04 Asset_5   0.306  0.577
+    ##  6 2021-02-04 Asset_6   0.0166 0.597
+    ##  7 2021-02-04 Asset_7   0.0428 0.582
+    ##  8 2021-02-04 Asset_8   0.0804 0.580
+    ##  9 2021-02-04 Asset_9   0.289  0.574
+    ## 10 2021-02-04 Asset_10  0.420  0.584
     ## # ... with 24,990 more rows
 
 ``` r
@@ -1642,16 +1654,16 @@ data_lco %>% group_by(Asset) %>% mutate(sd = sd(Return)) # sd approx = 1
     ## # Groups:   Asset [50]
     ##    date       Asset    Return    sd
     ##    <date>     <glue>    <dbl> <dbl>
-    ##  1 2021-02-03 Asset_1   0.692 1.03 
-    ##  2 2021-02-03 Asset_2   0.169 1.00 
-    ##  3 2021-02-03 Asset_3   0.844 1.01 
-    ##  4 2021-02-03 Asset_4   0.544 1.04 
-    ##  5 2021-02-03 Asset_5   0.449 1.04 
-    ##  6 2021-02-03 Asset_6   0.487 1.04 
-    ##  7 2021-02-03 Asset_7   0.333 1.04 
-    ##  8 2021-02-03 Asset_8   0.520 1.05 
-    ##  9 2021-02-03 Asset_9   1.49  0.981
-    ## 10 2021-02-03 Asset_10  0.750 1.02 
+    ##  1 2021-02-04 Asset_1   0.692 1.03 
+    ##  2 2021-02-04 Asset_2   0.169 1.00 
+    ##  3 2021-02-04 Asset_3   0.844 1.01 
+    ##  4 2021-02-04 Asset_4   0.544 1.04 
+    ##  5 2021-02-04 Asset_5   0.449 1.04 
+    ##  6 2021-02-04 Asset_6   0.487 1.04 
+    ##  7 2021-02-04 Asset_7   0.333 1.04 
+    ##  8 2021-02-04 Asset_8   0.520 1.05 
+    ##  9 2021-02-04 Asset_9   1.49  0.981
+    ## 10 2021-02-04 Asset_10  0.750 1.02 
     ## # ... with 24,990 more rows
 
 The above code demonstrates that the SD of asset returns is not being
@@ -1671,59 +1683,22 @@ simulation of asset markets.
 
 ``` r
 #' @title mc_market
-#' @description This function produces an ensemble of market returns with a given correlation matrix.
-#' The user can choose between the multivariate t and normal
-#' distributions and adjust the markets left tail dependency by weighting in the Clayton copula.
-#' The univariate asset return distributions can also be set to normal, student-t or sgt
-#' distributed. Finally, mean and variance persistence can be induced via the parameters of an
-#' ARMA + APARCH model.
-#' @note See examples under sim_market for instructions on how to add an on screen
-#'  progress bar when performing the Monte Carlo simulation, this is recommended as calculations may
-#'  take a number of minuets.
+#' @description This function performs a Monte Carlo simulation by iterating over the the sim_market function N times.
+#' It is intended for users who are not comfortable using the purrr::map functions.
+#' @note (1) see ?sim_market for information on the other parameters.
 #'
-#' It is suggested that the marginal distributions be set to mean zero and standard deviation
-#' one. Those attributes are better set in the ts_model argument.
-#' @param corr a correlation matrix specifying the correlation structure of the simulated data.
-#' Note that the number of variables simulated is equal to the number of columns in the correlation matrix.
+#' (2) See examples under sim_market for instructions on how to add an on-screen progress bar when performing
+#' the Monte Carlo simulation, this is recommended for simulations with N >1000 since they can take a number of
+#' minuets to complete.
 #' @param N a positive integer indicating the number of markets to simulate.
-#' @param k a positive integer indicating the number of time periods to simulate.
-#' @param mv_dist a string specifying the multivariate distribution. Can be one of c("norm", "t")
-#' which correspond to the multivariate normal and t distributions respectively.
-#' @param mv_df degrees of freedom of the multivariate distribution, required when mv_dist = "t". Default is 3.
-#' @param left_cop_weight a positive value between zero and one stipulating the weight applied to
-#' the Clayton copula when simulating the multivariate distribution. Note that a value between zero
-#' and one essentially generates a hybrid distribution between the chosen mv_dist and the Clayton
-#' copula. Therefore, the greater the left_cop_weight the less the data will reflect the correlation
-#' structure. Default is set to 0.
-#' @param left_cop_param a positive value indicating the parameter of the Clayton copula. Default is 4.
-#' @param marginal_dist a string variable specifying the asset returns univariate distribution. Can
-#' be one of c("norm", "t", "sgt") referring to the normal, student-t and skewed-generalized-t
-#' distributions respectively. Default is "norm".
-#' @param  marginal_dist_model list containing the relevant parameters for the chosen marginal_dist.
 #'
-#' marginal_dist = "norm" accepts the mean (mu) and standard deviation (sd) arguments with their respective
-#' defaults set to list(mu = 0, sd = 1).
+#' @param list a logical value indicating whether the output should be a list of tibbles or a single long tibble (see return).
+#' Due to memory issues associated with list = FALSE, list = TRUE is recommended for N > 500. List = FALSE is
+#' best used for tidy output that can easily be plotted with ggplot2 (see example).
 #'
-#' marginal_dist = "t" accepts the non-centrality parameter (ncp) and degrees of freedom (df) arguments,
-#' default values are list(ncp = 0, df = 5).
+#' @return if list = TRUE (default), a list of length N where each entry contains a tidy tibble with a date,
+#' Asset and Return column. Else if list = FALSE a single tidy tibble with date, Universe, Asset and Return columns.
 #'
-#' marginal_dist = "sgt" accepts the mean (mu), standard deviation (sd), lambda, p and q parameters
-#' list(mu = 0, sigma = 1, lambda, p, q). Note lambda, p and q have no defaults and must therefore be set
-#' by the user. For more information see the documentation on the qsgt function from the sgt pacakge.
-#' @param ts_model a list containing various ARMA + APGARCH model parameters allowing one to specify
-#' the time series properties of the simulated returns. Note that parameter combinations resulting
-#' in non-stationary of the mean or variance will produce NAN's and that the maximum lag allowed for
-#' any given parameter is 1.
-#'
-#' The default is ts_model = NULL, in which case time series time series properties are not induced, however if
-#' ts_model = list() then the default values are list(omega = 5e-04, alpha = 0, gamma = NULL, beta = 0, mu = 0,
-#' ar = NULL, ma = NULL, delta = 2). In order to set different parameters for each asset simply insert a vector
-#' of length equal to the number of assets, the first element of the vector will correspond to Asset_1, the 2nd
-#' to Asset_2 ect...
-#'
-#' See the sim_garch function's documentation and the "model" parameter under fGarch::garchSpec() for more details
-#' regarding the parameters themselves.
-#' @return a tidy tibble containing a date, Universe, Asset and Return column.
 #'
 #' @importFrom tidyr gather
 #' @importFrom dplyr progress_estimated
@@ -1737,14 +1712,13 @@ simulation of asset markets.
 #' library(tidyverse)
 #'
 #' ### creating a correlation matrix to use as input in sim_asset_market
-#' corr <- gen_corr(N = 20, Clusters = "none")
+#' corr <- gen_corr(D = 20, clusters = "none")
 #'
-#' ### simulating 550 periods of returns across 50 assets
+#' ### simulating 550 periods of returns across 50 assets and 100 universes
 #' set.seed(12542)
 #' market_data <- sim_asset_market(corr,
 #'                                 k = 550,
 #'                                 mv_dist = "norm",
-#'                                 left_cop_weight = 0.1,
 #'                                 marginal_dist = "norm",
 #'                                 ts_model = list(mu = 0.000002,
 #'                                                 omega = 0.00005,
@@ -1755,7 +1729,7 @@ simulation of asset markets.
 #'                                                 gamma = 0.12194,
 #'                                                 delta = 1.85))
 #'
-#'  ### Visualising the market
+#'  ### Visualizing the market
 #'  market_data %>% group_by(Asset) %>%
 #'  mutate(cum_ret = 100*cumprod(1 + Return)) %>%
 #'          ggplot() +
@@ -1766,28 +1740,51 @@ simulation of asset markets.
 #' }
 #' @export
 mc_market <- function(corr,
-                       N = 100,
-                       k = 252,
-                       mv_dist = "t",
-                       mv_df = 3,
-                       left_cop_weight = 0,
-                       left_cop_param = 4,
-                       marginal_dist = "norm",
-                       marginal_dist_model = NULL,
-                       ts_model = list()
-) {
+                      N = 100,
+                      k = 252,
+                      mv_dist = "t",
+                      mv_df = 3,
+                      clayton_param = 4,
+                      marginal_dist = "norm",
+                      marginal_dist_model = NULL,
+                      ts_model = NULL,
+                      list = TRUE) {
+    if (list == TRUE) {
 
-    1:N %>%
-        map_dfr(~sim_market(corr = corr,
-                            k = k,
-                            mv_dist = mv_dist,
-                            mv_df = mv_df,
-                            left_cop_weight = left_cop_weight,
-                            left_cop_param = left_cop_param,
-                            marginal_dist = marginal_dist,
-                            marginal_dist_model = marginal_dist_model,
-                            ts_model = ts_model),
-                .id = "Universe")
+        pb <- dplyr::progress_estimated(N) # setting length of progress bar
+
+        1:N %>%
+            map(
+                ~ sim_market(
+                    corr = corr,
+                    k = k,
+                    mv_dist = mv_dist,
+                    mv_df = mv_df,
+                    clayton_param = clayton_param,
+                    marginal_dist = marginal_dist,
+                    marginal_dist_model = marginal_dist_model,
+                    ts_model = ts_model
+                )
+            )
+
+    } else
+        if (list == FALSE) {
+            1:N %>%
+                map_dfr(
+                    ~ sim_market(
+                        corr = corr,
+                        k = k,
+                        mv_dist = mv_dist,
+                        mv_df = mv_df,
+                        clayton_param = clayton_param,
+                        marginal_dist = marginal_dist,
+                        marginal_dist_model = marginal_dist_model,
+                        ts_model = ts_model
+                    ),
+                    .id = "Universe"
+                )
+        }
+
 }
 ```
 
@@ -1810,10 +1807,12 @@ corr <- MCmarket::gen_corr(D = 20, clusters = "overlapping", num_clusters = c(2,
 #-----------------------------
 set.seed(521554)
 mc_data <- mc_market(corr, N = 10, 
-                     k = 500, marginal_dist = "t",
+                     k = 500, 
+                     marginal_dist = "t",
+                     ts_model = list(), # Using default ts_model arguments
                      list = FALSE)
 
-# Plotting reasults
+# Plotting results
 mc_data %>% 
   group_by(Asset, Universe) %>% 
   arrange(date) %>% 
